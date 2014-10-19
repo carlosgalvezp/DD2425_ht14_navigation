@@ -18,7 +18,6 @@ private:
     int adc_front;
     int adc_back;
 
-    // double gain;
     double v;
     double w;
     // In which side is wall
@@ -65,7 +64,6 @@ Wall_follower::Wall_follower(const ros::NodeHandle &n)
     n_.getParam("Wall_follower/W/KD", kd_w);
     n_.getParam("Wall_follower/W/KI", ki_w);
 
-    // n_.getParam("Wall_follower/gain", gain);
     n_.getParam("Wall_follower/linear_speed", v);
     n_.getParam("Wall_follower/wall_is_left", wall_is_left);
 }
@@ -81,12 +79,12 @@ void Wall_follower::run()
         delta = adc_back - adc_front;
         if(wall_is_left)
         {
-            controller_w.setData(0, delta);
+            controller_w.setData(0, -delta);
             w = controller_w.computeControl();
         }
         else
         {
-            controller_w.setData(0, -delta);
+            controller_w.setData(0, delta);
             w = controller_w.computeControl();
         }
 
@@ -100,7 +98,7 @@ void Wall_follower::run()
         msg.angular.y = 0.0;
         msg.angular.z = w;
 
-        ROS_INFO("(v,w): %f, %f\n", v, w);
+        std::cout <<"Commands (v,w): "<< v << ","<<w<<std::endl;
 
         twist_pub_.publish(msg);
 
@@ -115,12 +113,12 @@ void Wall_follower::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& m
 {
     if(wall_is_left)
     {
-        adc_front = msg->ch1;       //TODO: determine which sensor is which for robot
+        adc_front = msg->ch1;
         adc_back = msg->ch2;
     }
     else
     {
-        adc_front = msg->ch7;
-        adc_back = msg->ch8;
+        adc_front = msg->ch4;
+        adc_back = msg->ch3;
     }
 }
