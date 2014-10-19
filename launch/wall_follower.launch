@@ -1,10 +1,15 @@
 <launch>
 
-  <param name="Wall_follower/gain" value="0.005"/>
+  <param name="Wall_follower/W/KP" value="0.005"/>
+  <param name="Wall_follower/W/KD" value="0.0"/>
+  <param name="Wall_follower/W/KI" value="0.0"/>
+
+
   <param name="Wall_follower/linear_speed" value="0.2"/>
   <param name="Wall_follower/wall_is_left" value="true"/>
 
   <node pkg="wall_follower" type="wall_follower" name="wall_follower">	
 
+  <remap from="/arduino/adc" to="/kobuki/adc" />
   </node>
 </launch>
