@@ -57,7 +57,7 @@ Wall_follower::Wall_follower(const ros::NodeHandle &n)
     // Publisher
     twist_pub_ = n_.advertise<geometry_msgs::Twist>("/motor_controller/twist", QUEUE_SIZE);
     // Subscriber
-    adc_sub_ = n_.subscribe("/arduino/adc", 1,  &Wall_follower::adcCallback, this);
+    adc_sub_ = n_.subscribe("/arduino/adc", QUEUE_SIZE,  &Wall_follower::adcCallback, this);
 
     // params from launch file
     n_.getParam("Wall_follower/W/KP", kp_w);
@@ -66,6 +66,8 @@ Wall_follower::Wall_follower(const ros::NodeHandle &n)
 
     n_.getParam("Wall_follower/linear_speed", v);
     n_.getParam("Wall_follower/wall_is_left", wall_is_left);
+
+    controller_w = Controller(kp_w,kd_w,ki_w, 10);
 }
 
 void Wall_follower::run()
@@ -98,7 +100,8 @@ void Wall_follower::run()
         msg.angular.y = 0.0;
         msg.angular.z = w;
 
-        std::cout <<"Commands (v,w): "<< v << ","<<w<<std::endl;
+        std::cout <<"Commands (v,w): "<< v << ","<<w
+                 << " ADC data: " << adc_front <<" "<< adc_back <<std::endl;
 
         twist_pub_.publish(msg);
 
@@ -111,6 +114,7 @@ void Wall_follower::run()
 
 void Wall_follower::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg)
 {
+
     if(wall_is_left)
     {
         adc_front = msg->ch1;
