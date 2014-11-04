@@ -131,7 +131,7 @@ void Wall_follower::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& m
     }
     else
     {
-        distance_front = msg->ch4;
-        distance_back = msg->ch3;
+        distance_front = RAS_Utils::shortSensorToDistanceInCM(msg->ch4);
+        distance_back = RAS_Utils::shortSensorToDistanceInCM(msg->ch3);
     }
 }
