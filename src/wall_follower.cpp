@@ -15,8 +15,8 @@ public:
 
 private:
     // adc data from IR sensors
-    int adc_front;
-    int adc_back;
+    int distance_front;
+    int distance_back;
 
     double v;
     double w;
@@ -50,8 +50,8 @@ Wall_follower::Wall_follower(const ros::NodeHandle &n)
     : n_(n)
 {
     // initial values
-    adc_front = 0;
-    adc_back = 0;
+    distance_front = 0;
+    distance_back = 0;
     w = 0;
 
     // Publisher
@@ -71,14 +71,14 @@ Wall_follower::Wall_follower(const ros::NodeHandle &n)
 }
 
 void Wall_follower::run()
-{   
+{
     // ** Publish data
     ros::Rate loop_rate(PUBLISH_RATE);
 
-    int delta;
+    double delta;
     while(ros::ok())
     {
-        delta = adc_back - adc_front;
+        delta = distance_front - distance_back;
         if(wall_is_left)
         {
             controller_w.setData(0, -delta);
@@ -101,7 +101,7 @@ void Wall_follower::run()
         msg.angular.z = w;
 
         std::cout <<"Commands (v,w): "<< v << ","<<w
-                 << " ADC data: " << adc_front <<" "<< adc_back <<std::endl;
+                 << " distance data: " << distance_front <<" "<< distance_back <<std::endl;
 
         twist_pub_.publish(msg);
 
@@ -117,12 +117,12 @@ void Wall_follower::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& m
 
     if(wall_is_left)
     {
-        adc_front = msg->ch1;
-        adc_back = msg->ch2;
+        distance_front = RAS_Utils::shortSensorToDistanceInCM(msg->ch1);
+        distance_back = RAS_Utils::shortSensorToDistanceInCM(msg->ch2);
     }
     else
     {
-        adc_front = msg->ch4;
-        adc_back = msg->ch3;
+        distance_front = msg->ch4;
+        distance_back = msg->ch3;
     }
 }
