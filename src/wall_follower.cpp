@@ -2,16 +2,23 @@
 #include "geometry_msgs/Twist.h"
 #include "ras_arduino_msgs/ADConverter.h"
 #include "ras_utils/controller.h"
+#include "ras_utils/basic_node.h"
 
 #define PUBLISH_RATE 10 // Hz
 #define QUEUE_SIZE 1000
-#define DEFAULT_WANTED_DISTANCE 15.0
 
-class Wall_follower
+#define DEFAULT_WANTED_DISTANCE 15.0
+#define DEFAULT_KP_W 0.005
+#define DEFAULT_KD_W 0.001 //0.01
+#define DEFAULT_KI_W 0.00001
+#define DEFAULT_LINEAR_SPEED 0.13
+#define DEFUALT_WALL_IS_LEFT false
+
+class Wall_follower : rob::BasicNode
 {
 public:
 
-    Wall_follower(const ros::NodeHandle& n);
+    Wall_follower();
     void run();
 
 private:
@@ -32,6 +39,8 @@ private:
     // Callback func when adc data recieved
     void adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg);
 
+    void addParams();
+
     Controller controller_w;
     double kp_w, ki_w, kd_w;
 };
@@ -40,38 +49,35 @@ int main (int argc, char* argv[])
 {
     // ** Init node
     ros::init(argc, argv, "wall_follower");
-    ros::NodeHandle n;
 
     // ** Create wall follower object
-    Wall_follower wf(n);
+    Wall_follower wf;
 
     // ** Run
     wf.run();
 }
 
-Wall_follower::Wall_follower(const ros::NodeHandle &n)
-    : n_(n)
+Wall_follower::Wall_follower() : distance_front(0), distance_back(0), w(0)
 {
-    // initial values
-    distance_front = 0;
-    distance_back = 0;
-    wanted_distance = DEFAULT_WANTED_DISTANCE;
-    w = 0;
+    addParams();
+    print_params();
 
     // Publisher
     twist_pub_ = n_.advertise<geometry_msgs::Twist>("/motor_controller/twist", QUEUE_SIZE);
     // Subscriber
     adc_sub_ = n_.subscribe("/arduino/adc", QUEUE_SIZE,  &Wall_follower::adcCallback, this);
 
-    // params from launch file
-    n_.getParam("Wall_follower/W/KP", kp_w);
-    n_.getParam("Wall_follower/W/KD", kd_w);
-    n_.getParam("Wall_follower/W/KI", ki_w);
-
-    n_.getParam("Wall_follower/linear_speed", v);
-    n_.getParam("Wall_follower/wall_is_left", wall_is_left);
-
     controller_w = Controller(kp_w,kd_w,ki_w, 10);
+}
+
+void Wall_follower::addParams()
+{
+    add_param("wf/wanted_distance", wanted_distance, DEFAULT_WANTED_DISTANCE);
+    add_param("wf/W/KP", kp_w, DEFAULT_KP_W);
+    add_param("wf/W/KD", kd_w, DEFAULT_KD_W);
+    add_param("wf/W/KI", ki_w, DEFAULT_KI_W);
+    add_param("wf/linear_speed", v, DEFAULT_LINEAR_SPEED);
+    add_param("wf/wall_is_left", wall_is_left, DEFUALT_WALL_IS_LEFT);
 }
 
 void Wall_follower::run()
