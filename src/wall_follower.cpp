@@ -5,6 +5,7 @@
 
 #define PUBLISH_RATE 10 // Hz
 #define QUEUE_SIZE 1000
+#define DEFAULT_WANTED_DISTANCE 15.0
 
 class Wall_follower
 {
@@ -15,8 +16,10 @@ public:
 
 private:
     // adc data from IR sensors
-    int distance_front;
-    int distance_back;
+    double distance_front;
+    double distance_back;
+
+    double wanted_distance;
 
     double v;
     double w;
@@ -52,6 +55,7 @@ Wall_follower::Wall_follower(const ros::NodeHandle &n)
     // initial values
     distance_front = 0;
     distance_back = 0;
+    wanted_distance = DEFAULT_WANTED_DISTANCE;
     w = 0;
 
     // Publisher
@@ -76,9 +80,14 @@ void Wall_follower::run()
     ros::Rate loop_rate(PUBLISH_RATE);
 
     double delta;
+    double diff;
+    double avarage_distance_to_wall;
     while(ros::ok())
     {
-        delta = distance_front - distance_back;
+        avarage_distance_to_wall = (distance_front + distance_back) / 2.0;
+        diff = distance_front - distance_back;
+        delta = diff + (avarage_distance_to_wall - wanted_distance);
+
         if(wall_is_left)
         {
             controller_w.setData(0, -delta);
