@@ -13,7 +13,7 @@
 #define DEFAULT_KD_W            0.001 //0.01
 #define DEFAULT_KI_W            0.00001
 #define DEFAULT_LINEAR_SPEED    0.13
-#define DEFUALT_WALL_IS_LEFT    false
+#define DEFUALT_WALL_IS_RIGHT   true
 
 class Wall_follower : rob::BasicNode
 {
@@ -34,7 +34,7 @@ private:
     double v;
     double w;
     // In which side is wall
-    bool wall_is_left;
+    bool wall_is_right;
 
     ros::NodeHandle n_;
     ros::Publisher twist_pub_;
@@ -81,7 +81,7 @@ void Wall_follower::addParams()
     add_param("wf/W/KD", kd_w, DEFAULT_KD_W);
     add_param("wf/W/KI", ki_w, DEFAULT_KI_W);
     add_param("wf/linear_speed", v, DEFAULT_LINEAR_SPEED);
-    add_param("wf/wall_is_left", wall_is_left, DEFUALT_WALL_IS_LEFT);
+    add_param("wf/wall_is_right", wall_is_right, DEFUALT_WALL_IS_RIGHT);
 }
 
 void Wall_follower::run()
@@ -98,7 +98,7 @@ void Wall_follower::run()
         diff = distance_front - distance_back;
         delta = diff + (avarage_distance_to_wall - wanted_distance);
 
-        if(wall_is_left)
+        if(wall_is_right)
         {
             controller_w.setData(0, -delta);
             w = controller_w.computeControl();
@@ -120,7 +120,7 @@ void Wall_follower::run()
         msg.angular.z = w;
 
         if(debug_print) {
-            print("wall_is_left", wall_is_left);
+            print("wall_is_right", wall_is_right);
             std::vector<std::string> info({"v", "w", "distance_front", "distance_back", "Avarage_distance", "Wanted_distance", "Diff", "Delta"});
             std::vector<double> data({v, w, distance_front, distance_back, avarage_distance_to_wall, wanted_distance, diff, delta});
             print(info, data);
@@ -138,7 +138,7 @@ void Wall_follower::run()
 void Wall_follower::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg)
 {
 
-    if(wall_is_left)
+    if(wall_is_right)
     {
         distance_front = RAS_Utils::shortSensorToDistanceInCM(msg->ch1);
         distance_back = RAS_Utils::shortSensorToDistanceInCM(msg->ch2);
