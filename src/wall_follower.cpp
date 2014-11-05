@@ -7,12 +7,13 @@
 #define PUBLISH_RATE 10 // Hz
 #define QUEUE_SIZE 1000
 
+#define DEFAULT_DEBUG_PRINT     true
 #define DEFAULT_WANTED_DISTANCE 15.0
-#define DEFAULT_KP_W 0.005
-#define DEFAULT_KD_W 0.001 //0.01
-#define DEFAULT_KI_W 0.00001
-#define DEFAULT_LINEAR_SPEED 0.13
-#define DEFUALT_WALL_IS_LEFT false
+#define DEFAULT_KP_W            0.005
+#define DEFAULT_KD_W            0.001 //0.01
+#define DEFAULT_KI_W            0.00001
+#define DEFAULT_LINEAR_SPEED    0.13
+#define DEFUALT_WALL_IS_LEFT    false
 
 class Wall_follower : rob::BasicNode
 {
@@ -22,6 +23,8 @@ public:
     void run();
 
 private:
+    bool debug_print;
+
     // adc data from IR sensors
     double distance_front;
     double distance_back;
@@ -72,6 +75,7 @@ Wall_follower::Wall_follower() : distance_front(0), distance_back(0), w(0)
 
 void Wall_follower::addParams()
 {
+    add_param("wf/debug_print", debug_print, DEFAULT_DEBUG_PRINT);
     add_param("wf/wanted_distance", wanted_distance, DEFAULT_WANTED_DISTANCE);
     add_param("wf/W/KP", kp_w, DEFAULT_KP_W);
     add_param("wf/W/KD", kd_w, DEFAULT_KD_W);
@@ -115,8 +119,11 @@ void Wall_follower::run()
         msg.angular.y = 0.0;
         msg.angular.z = w;
 
-        std::cout <<"Commands (v,w): "<< v << ","<<w
-                 << " distance data: " << distance_front <<" "<< distance_back <<std::endl;
+        if(debug_print) {
+            std::vector<std::string> info({"v", "w", "distance_front", "distance_back", "Avarage_distance", "Wanted_distance", "Diff", "Delta"});
+            std::vector<double> data({v, w, distance_front, distance_back, avarage_distance_to_wall, wanted_distance, diff, delta});
+            print(info, data);
+        }
 
         twist_pub_.publish(msg);
 
