@@ -120,6 +120,7 @@ void Wall_follower::run()
         msg.angular.z = w;
 
         if(debug_print) {
+            print("wall_is_left", wall_is_left);
             std::vector<std::string> info({"v", "w", "distance_front", "distance_back", "Avarage_distance", "Wanted_distance", "Diff", "Delta"});
             std::vector<double> data({v, w, distance_front, distance_back, avarage_distance_to_wall, wanted_distance, diff, delta});
             print(info, data);
