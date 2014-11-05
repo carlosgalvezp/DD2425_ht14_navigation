@@ -100,12 +100,12 @@ void Wall_follower::run()
 
         if(wall_is_right)
         {
-            controller_w.setData(0, -delta);
+            controller_w.setData(0, delta);
             w = controller_w.computeControl();
         }
         else
         {
-            controller_w.setData(0, delta);
+            controller_w.setData(0, -delta);
             w = controller_w.computeControl();
         }
 
