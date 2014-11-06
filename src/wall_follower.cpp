@@ -8,12 +8,13 @@
 #define QUEUE_SIZE 1000
 
 #define DEFAULT_DEBUG_PRINT     true
-#define DEFAULT_WANTED_DISTANCE 15.0
-#define DEFAULT_KP_W            0.005
-#define DEFAULT_KD_W            0.001 //0.01
-#define DEFAULT_KI_W            0.00001
-#define DEFAULT_LINEAR_SPEED    0.13
-#define DEFUALT_WALL_IS_RIGHT   true
+#define DEFAULT_WANTED_DISTANCE         15.0
+#define DEFAULT_KP_W                    0.02 //0.005
+#define DEFAULT_KD_W                    0.1 //0.01
+#define DEFAULT_KI_W                    0.00001
+#define DEFAULT_LINEAR_SPEED            0.13
+#define DEFUALT_WALL_IS_RIGHT           true
+#define DEFAULT_STOPPING_ERROR_MARGIN   3.0
 
 class Wall_follower : rob::BasicNode
 {
@@ -30,6 +31,8 @@ private:
     double distance_back;
 
     double wanted_distance;
+
+    double stopping_error_margin;
 
     double v;
     double w;
@@ -82,6 +85,7 @@ void Wall_follower::addParams()
     add_param("wf/W/KI", ki_w, DEFAULT_KI_W);
     add_param("wf/linear_speed", v, DEFAULT_LINEAR_SPEED);
     add_param("wf/wall_is_right", wall_is_right, DEFUALT_WALL_IS_RIGHT);
+    add_param("wf/stopping_error_margin", stopping_error_margin, DEFAULT_STOPPING_ERROR_MARGIN);
 }
 
 void Wall_follower::run()
@@ -109,9 +113,18 @@ void Wall_follower::run()
             w = controller_w.computeControl();
         }
 
+        double temp_v;
+
+        if(delta > stopping_error_margin) {
+            //we are way of from our wanted direction, stop the motion forward!
+           temp_v = 0;
+        } else {
+            temp_v = v;
+        }
+
         geometry_msgs::Twist msg;
 
-        msg.linear.x = v;
+        msg.linear.x = temp_v;
         msg.linear.y = 0.0;
         msg.linear.z = 0.0;
 
@@ -122,7 +135,7 @@ void Wall_follower::run()
         if(debug_print) {
             print("wall_is_right", wall_is_right);
             std::vector<std::string> info({"v", "w", "distance_front", "distance_back", "Avarage_distance", "Wanted_distance", "Diff", "Delta"});
-            std::vector<double> data({v, w, distance_front, distance_back, avarage_distance_to_wall, wanted_distance, diff, delta});
+            std::vector<double> data({temp_v, w, distance_front, distance_back, avarage_distance_to_wall, wanted_distance, diff, delta});
             print(info, data);
         }
 
