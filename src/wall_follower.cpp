@@ -7,14 +7,14 @@
 #define PUBLISH_RATE 10 // Hz
 #define QUEUE_SIZE 1000
 
-#define DEFAULT_DEBUG_PRINT     true
-#define DEFAULT_WANTED_DISTANCE         15.0
+#define DEFAULT_DEBUG_PRINT             true
+#define DEFAULT_WANTED_DISTANCE         16.0
 #define DEFAULT_KP_W                    0.02 //0.005
 #define DEFAULT_KD_W                    0.1 //0.01
-#define DEFAULT_KI_W                    0.00001
+#define DEFAULT_KI_W                    0.0// 0.00001
 #define DEFAULT_LINEAR_SPEED            0.13
 #define DEFUALT_WALL_IS_RIGHT           true
-#define DEFAULT_STOPPING_ERROR_MARGIN   3.0
+#define DEFAULT_STOPPING_ERROR_MARGIN   6.0
 
 class Wall_follower : rob::BasicNode
 {
