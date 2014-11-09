@@ -4,6 +4,8 @@
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
 
+#include <math.h>
+
 #define PUBLISH_RATE 10 // Hz
 #define QUEUE_SIZE 1000
 
@@ -14,7 +16,8 @@
 #define DEFAULT_KI_W                    0.00001
 #define DEFAULT_LINEAR_SPEED            0.13
 #define DEFUALT_WALL_IS_RIGHT           true
-#define DEFAULT_STOPPING_ERROR_MARGIN   3.0
+#define DEFAULT_STOPPING_ERROR_MARGIN   6.0
+#define DEFAULT_STARTER_INCREASER 	0.01
 
 class Wall_follower : rob::BasicNode
 {
@@ -33,8 +36,10 @@ private:
     double wanted_distance;
 
     double stopping_error_margin;
+    double starter_increaser; 
 
     double v;
+    double actual_v;
     double w;
     // In which side is wall
     bool wall_is_right;
@@ -63,7 +68,7 @@ int main (int argc, char* argv[])
     wf.run();
 }
 
-Wall_follower::Wall_follower() : distance_front(0), distance_back(0), w(0)
+Wall_follower::Wall_follower() : distance_front(0), distance_back(0), w(0), actual_v(0)
 {
     addParams();
     print_params();
@@ -86,6 +91,7 @@ void Wall_follower::addParams()
     add_param("wf/linear_speed", v, DEFAULT_LINEAR_SPEED);
     add_param("wf/wall_is_right", wall_is_right, DEFUALT_WALL_IS_RIGHT);
     add_param("wf/stopping_error_margin", stopping_error_margin, DEFAULT_STOPPING_ERROR_MARGIN);
+    add_param("wf/starter_increaser", starter_increaser, DEFAULT_STARTER_INCREASER);
 }
 
 void Wall_follower::run()
@@ -113,18 +119,18 @@ void Wall_follower::run()
             w = controller_w.computeControl();
         }
 
-        double temp_v;
-
-        if(delta > stopping_error_margin) {
+        if(fabs(diff) > stopping_error_margin) {
             //we are way of from our wanted direction, stop the motion forward!
-           temp_v = 0;
+           actual_v = 0;
         } else {
-            temp_v = v;
+        	if(actual_v < v) {
+        		actual_v = fmin(actual_v + v*starter_increaser, v);
+        	}
         }
 
         geometry_msgs::Twist msg;
 
-        msg.linear.x = temp_v;
+        msg.linear.x = actual_v;
         msg.linear.y = 0.0;
         msg.linear.z = 0.0;
 
@@ -135,7 +141,7 @@ void Wall_follower::run()
         if(debug_print) {
             print("wall_is_right", wall_is_right);
             std::vector<std::string> info({"v", "w", "distance_front", "distance_back", "Avarage_distance", "Wanted_distance", "Diff", "Delta"});
-            std::vector<double> data({temp_v, w, distance_front, distance_back, avarage_distance_to_wall, wanted_distance, diff, delta});
+            std::vector<double> data({actual_v, w, distance_front, distance_back, avarage_distance_to_wall, wanted_distance, diff, delta});
             print(info, data);
         }
 
