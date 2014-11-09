@@ -9,15 +9,16 @@
 #define PUBLISH_RATE 10 // Hz
 #define QUEUE_SIZE 1000
 
-#define DEFAULT_DEBUG_PRINT     true
-#define DEFAULT_WANTED_DISTANCE         15.0
-#define DEFAULT_KP_W                    0.02 //0.005
-#define DEFAULT_KD_W                    0.1 //0.01
-#define DEFAULT_KI_W                    0.00001
+#define DEFAULT_DEBUG_PRINT             true
+#define DEFAULT_WANTED_DISTANCE         16.0
+#define DEFAULT_KP_W                    0.02    //0.005
+#define DEFAULT_KD_W                    0.1     //0.01
+#define DEFAULT_KI_W                    0.0     // 0.00001
 #define DEFAULT_LINEAR_SPEED            0.13
 #define DEFUALT_WALL_IS_RIGHT           true
 #define DEFAULT_STOPPING_ERROR_MARGIN   6.0
-#define DEFAULT_STARTER_INCREASER 	0.01
+#define DEFUALT_STOPPED_TURN_INCREASER  5.0
+#define DEFUALT_SLOW_START_INCREASER    0.1     // in percentage, 1 means full throttle from start
 
 class Wall_follower : rob::BasicNode
 {
@@ -36,10 +37,13 @@ private:
     double wanted_distance;
 
     double stopping_error_margin;
-    double starter_increaser; 
 
-    double v;
+    double stopped_turn_increaser;
+    double slow_start_increaser;
+
+    double wanted_v;
     double actual_v;
+
     double w;
     // In which side is wall
     bool wall_is_right;
@@ -57,8 +61,8 @@ private:
 };
 
 int main (int argc, char* argv[])
+// ** Init node
 {
-    // ** Init node
     ros::init(argc, argv, "wall_follower");
 
     // ** Create wall follower object
@@ -88,10 +92,11 @@ void Wall_follower::addParams()
     add_param("wf/W/KP", kp_w, DEFAULT_KP_W);
     add_param("wf/W/KD", kd_w, DEFAULT_KD_W);
     add_param("wf/W/KI", ki_w, DEFAULT_KI_W);
-    add_param("wf/linear_speed", v, DEFAULT_LINEAR_SPEED);
+    add_param("wf/linear_speed", wanted_v, DEFAULT_LINEAR_SPEED);
     add_param("wf/wall_is_right", wall_is_right, DEFUALT_WALL_IS_RIGHT);
     add_param("wf/stopping_error_margin", stopping_error_margin, DEFAULT_STOPPING_ERROR_MARGIN);
-    add_param("wf/starter_increaser", starter_increaser, DEFAULT_STARTER_INCREASER);
+    add_param("wf/stopped_delta_increaser", stopped_turn_increaser, DEFUALT_STOPPED_TURN_INCREASER);
+    add_param("wf/slow_start_increaser", slow_start_increaser, DEFUALT_SLOW_START_INCREASER);
 }
 
 void Wall_follower::run()
@@ -121,11 +126,11 @@ void Wall_follower::run()
 
         if(fabs(diff) > stopping_error_margin) {
             //we are way of from our wanted direction, stop the motion forward!
-           actual_v = 0;
+            //also increase the power of turning for the robot, needed cause otherwise the robot is too weak.
+            actual_v = 0;
+            w *= stopped_turn_increaser;
         } else {
-        	if(actual_v < v) {
-        		actual_v = fmin(actual_v + v*starter_increaser, v);
-        	}
+            actual_v = fmin(actual_v + wanted_v * slow_start_increaser, wanted_v);
         }
 
         geometry_msgs::Twist msg;
