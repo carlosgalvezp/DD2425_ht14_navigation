@@ -5,8 +5,8 @@
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
 
-#define MAX_DIST_FRONT_WALL     5       // [cm]
-#define MAX_DIST_SIDE_WALL     10       // [cm]
+#define MAX_DIST_FRONT_WALL     400       // [cm] Change this!!
+#define MAX_DIST_SIDE_WALL     20       // [cm]
 
 #define DEFAULT_DEBUG_PRINT             true
 #define DEFAULT_WANTED_DISTANCE         16.0

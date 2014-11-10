@@ -23,7 +23,7 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
     if (msg != nullptr)
     {
         // ** Check if we need to turn (we have a wall in front of us)
-        double dist_front_large_range = msg->ch7;
+        double dist_front_large_range = msg->ch8;
         ROS_ERROR("CONVERT LONG RANGE SENSOR TO CM!");
 
         double d_right_front = RAS_Utils::shortSensorToDistanceInCM(msg->ch4);
@@ -31,9 +31,10 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
         double d_left_front  = RAS_Utils::shortSensorToDistanceInCM(msg->ch1);
         double d_left_back   = RAS_Utils::shortSensorToDistanceInCM(msg->ch2);
 
+	ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range, d_right_front, d_right_back, d_left_front, d_left_back);
         if(check_turn(dist_front_large_range,d_right_front,d_right_back, d_left_front, d_left_back))
         {
-            std::cout << "Have to turn" << std::endl;
+            ROS_INFO("Have to turn");
         }
         else
         {
@@ -45,17 +46,17 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
                 double avg_d_wall_right = 0.5*(d_right_back + d_right_front);
                 double avg_d_wall_left  = 0.5*(d_left_back + d_left_front);
 
-                wall_is_right = avg_d_wall_right < avg_d_wall_left;
+                wall_is_right = (avg_d_wall_right < avg_d_wall_left);
                 double distance_front, distance_back;
                 if(wall_is_right)
                 {
-                    std::cout << "Following right wall" << std::endl;
+                    ROS_INFO("Following right wall");
                     distance_front = d_right_front;
                     distance_back = d_right_back;
                 }
                 else
                 {
-                    std::cout << "Following left wall" << std::endl;
+                    ROS_INFO("Following left wall");
                     distance_front = d_left_front;
                     distance_back = d_left_back;
                 }
@@ -64,7 +65,7 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
             }
             else{
                 // ** Ask boss to decide what to do
-                ROS_ERROR("COMPLETE THIS PART!");
+                ROS_ERROR("(ASK BRAIN) COMPLETE THIS PART!");
             }
         }
     }
@@ -73,7 +74,7 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
 bool Wall_follower::check_turn(double d_front, double d_right_front, double d_right_back,
                                 double d_left_front, double d_left_back)
 {
-    if(d_front < MAX_DIST_FRONT_WALL)
+    if(d_front > MAX_DIST_FRONT_WALL) // Change this, should be <
     {
         // Decide whether to turn +-90º or 180º
         double turn_angle;
@@ -88,10 +89,11 @@ bool Wall_follower::check_turn(double d_front, double d_right_front, double d_ri
         else
             turn_angle = M_PI;
 
-        turning_ = true;
-        ROS_ERROR("Missing Turner object");
+	ROS_ERROR("Turn %.3f rads. Missing Turner object", turn_angle);
+        return true;        
 //        Turner.set_turn(turn_angle);
     }
+    return false;
 }
 
 void Wall_follower::compute_commands(double distance_front, double distance_back, bool wall_is_right,
