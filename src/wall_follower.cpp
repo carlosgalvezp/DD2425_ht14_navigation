@@ -5,7 +5,7 @@ Wall_follower::Wall_follower() : actual_v(0), turning_(false)
     controller_w = Controller(kp_w,kd_w,ki_w, 10);
 }
 
-void Wall_follower::setParams(const WF_PARAMS &params)
+void Wall_follower::setParams(const WF_PARAMS &params, const RT_PARAMS &rt_params)
 {
     debug_print = params.debug_print;
     wanted_distance = params.wanted_distance;
@@ -16,29 +16,40 @@ void Wall_follower::setParams(const WF_PARAMS &params)
     stopping_error_margin = params.stopping_error_margin;
     stopped_turn_increaser = params.stopped_turn_increaser;
     slow_start_increaser = params.slow_start_increaser;
+    this->rt_params = rt_params;
+    controller_w = Controller(kp_w, kd_w, ki_w);
 }
 
-void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstPtr &msg, double &v, double &w)
+void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg, const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg, double &v, double &w)
 {
-    if (msg != nullptr)
+    if (adc_msg != nullptr && odo_msg != nullptr)
     {
+        if (robot_turner.isRotating())
+        {
+            ROS_WARN("Turning");
+            robot_turner.compute_commands(odo_msg, v, w);
+            return;
+        }
         // ** Check if we need to turn (we have a wall in front of us)
-        double dist_front_large_range = msg->ch8;
+        double dist_front_large_range = adc_msg->ch8;
         ROS_ERROR("CONVERT LONG RANGE SENSOR TO CM!");
 
-        double d_right_front = RAS_Utils::shortSensorToDistanceInCM(msg->ch4);
-        double d_right_back  = RAS_Utils::shortSensorToDistanceInCM(msg->ch3);
-        double d_left_front  = RAS_Utils::shortSensorToDistanceInCM(msg->ch1);
-        double d_left_back   = RAS_Utils::shortSensorToDistanceInCM(msg->ch2);
+        double d_right_front = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch4);
+        double d_right_back  = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch3);
+        double d_left_front  = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch1);
+        double d_left_back   = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch2);
 
         ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range, d_right_front, d_right_back, d_left_front, d_left_back);
         if(is_wall_in_front(dist_front_large_range))
         {
-            ROS_INFO("Wall is close!");
+            ROS_INFO("!!! Start turning !!!");
             // Stop the robot! For now...
-            v = 0;
-            w = 0;
-             //check_turn(dist_front_large_range,d_right_front,d_right_back, d_left_front, d_left_back)
+            turning_ = true;
+            double delta_angle = compute_turning_angle(dist_front_large_range,d_right_front,d_right_back, d_left_front, d_left_back);
+            double base_angle = odo_msg->theta;
+            robot_turner = Robot_turning(rt_params);
+            robot_turner.init(base_angle, delta_angle);
+            robot_turner.compute_commands(odo_msg, v, w);
         }
         else
         {
@@ -76,7 +87,7 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
 }
 
 bool Wall_follower::is_wall_in_front(double d_front) {
-    if(d_front > MAX_DIST_FRONT_WALL);
+    return d_front > MAX_DIST_FRONT_WALL;
 }
 
 double Wall_follower::compute_turning_angle(double d_front, double d_right_front, double d_right_back,
@@ -122,6 +133,12 @@ void Wall_follower::compute_commands(double distance_front, double distance_back
         w = controller_w.computeControl();
     }
 
+
+    ROS_INFO("v:%.3f w:%.3f Avg_dist_wall:%.3f Diff:%.3f Delta:%.3fo", v, w, avarage_distance_to_wall, diff, delta);
+
+
+    /*
+
     if(fabs(diff) > stopping_error_margin) {
         //we are way of from our wanted direction, stop the motion forward!
         //also increase the power of turning for the robot, needed cause otherwise the robot is too weak.
@@ -130,5 +147,7 @@ void Wall_follower::compute_commands(double distance_front, double distance_back
     } else {
         actual_v = fmin(actual_v + wanted_v * slow_start_increaser, wanted_v);
     }
-    v = actual_v;
+    */
+    v = wanted_v;  //actual_v;
+
 }

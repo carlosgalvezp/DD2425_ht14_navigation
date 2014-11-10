@@ -2,10 +2,12 @@
 #define WALL_FOLLOWER_H
 #include "ros/ros.h"
 #include <ras_arduino_msgs/ADConverter.h>
+#include <geometry_msgs/Pose2D.h>
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
+#include <navigation/robot_turning.h>
 
-#define MAX_DIST_FRONT_WALL     400       // [cm] Change this!!
+#define MAX_DIST_FRONT_WALL     280       // [cm] Change this!!
 #define MAX_DIST_SIDE_WALL     20       // [cm]
 
 #define DEFAULT_DEBUG_PRINT             true
@@ -33,10 +35,13 @@ class Wall_follower : rob::BasicNode
 public:
 
     Wall_follower();
-    void setParams(const WF_PARAMS &params);
-    void compute_commands(const ras_arduino_msgs::ADConverter::ConstPtr& msg, double &v, double &w);
+    void setParams(const WF_PARAMS &params, const RT_PARAMS &rt_params);
+    void compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg, const ras_arduino_msgs::ADConverter::ConstPtr& msg , double &v, double &w);
 
 private:
+    Robot_turning robot_turner;
+    RT_PARAMS rt_params;
+
     bool debug_print;
 
     // adc data from IR sensors
@@ -62,7 +67,7 @@ private:
 
     void addParams();
 
-    bool check_turn(double d_front, double d_right_front, double d_right_back,
+    double compute_turning_angle(double d_front, double d_right_front, double d_right_back,
                                     double d_left_front, double d_left_back);
 
     Controller controller_w;
@@ -70,6 +75,6 @@ private:
 
     bool turning_;
 
-    bool is_wall_in_front();
+    bool is_wall_in_front(double d_front);
 };
 #endif // WALL_FOLLOWER_H
