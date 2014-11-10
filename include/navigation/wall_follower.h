@@ -35,6 +35,7 @@ public:
     Wall_follower();
     void setParams(const WF_PARAMS &params);
     void compute_commands(const ras_arduino_msgs::ADConverter::ConstPtr& msg, double &v, double &w);
+
 private:
     bool debug_print;
 
@@ -68,5 +69,7 @@ private:
     double kp_w, ki_w, kd_w;
 
     bool turning_;
+
+    bool is_wall_in_front();
 };
 #endif // WALL_FOLLOWER_H

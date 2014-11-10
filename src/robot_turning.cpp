@@ -39,19 +39,6 @@ private:
     double kp_w, ki_w, kd_w;
 };
 
-int main (int argc, char* argv[])
-{  
-    // ** Init node
-    ros::init(argc, argv, "robot_turning");
-    ros::NodeHandle n;
-
-    // ** Create object
-    Robot_turning turn(n);
-
-    // ** turn 90 degrees (to the right)
-    turn.run( -M_PI / 2 );
-}
-
 Robot_turning::Robot_turning(const ros::NodeHandle &n)
     : n_(n)
 {

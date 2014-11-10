@@ -31,10 +31,14 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
         double d_left_front  = RAS_Utils::shortSensorToDistanceInCM(msg->ch1);
         double d_left_back   = RAS_Utils::shortSensorToDistanceInCM(msg->ch2);
 
-	ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range, d_right_front, d_right_back, d_left_front, d_left_back);
-        if(check_turn(dist_front_large_range,d_right_front,d_right_back, d_left_front, d_left_back))
+        ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range, d_right_front, d_right_back, d_left_front, d_left_back);
+        if(is_wall_in_front(dist_front_large_range))
         {
-            ROS_INFO("Have to turn");
+            ROS_INFO("Wall is close!");
+            // Stop the robot! For now...
+            v = 0;
+            w = 0;
+             //check_turn(dist_front_large_range,d_right_front,d_right_back, d_left_front, d_left_back)
         }
         else
         {
@@ -71,29 +75,29 @@ void Wall_follower::compute_commands(const ras_arduino_msgs::ADConverter::ConstP
     }
 }
 
-bool Wall_follower::check_turn(double d_front, double d_right_front, double d_right_back,
+bool Wall_follower::is_wall_in_front(double d_front) {
+    if(d_front > MAX_DIST_FRONT_WALL);
+}
+
+double Wall_follower::compute_turning_angle(double d_front, double d_right_front, double d_right_back,
                                 double d_left_front, double d_left_back)
 {
-    if(d_front > MAX_DIST_FRONT_WALL) // Change this, should be <
+    // Decide whether to turn +-90º or 180º
+    double turn_angle;
+    if(d_left_front > MAX_DIST_SIDE_WALL && d_left_back > MAX_DIST_SIDE_WALL)
     {
-        // Decide whether to turn +-90º or 180º
-        double turn_angle;
-        if(d_left_front > MAX_DIST_SIDE_WALL && d_left_back > MAX_DIST_SIDE_WALL)
-        {
-            turn_angle = M_PI/2.0;
-        }
-        else if(d_right_front > MAX_DIST_SIDE_WALL && d_right_back > MAX_DIST_SIDE_WALL)
-        {
-            turn_angle = -M_PI/2.0;
-        }
-        else
-            turn_angle = M_PI;
-
-	ROS_ERROR("Turn %.3f rads. Missing Turner object", turn_angle);
-        return true;        
-//        Turner.set_turn(turn_angle);
+        turn_angle = M_PI/2.0;
     }
-    return false;
+    else if(d_right_front > MAX_DIST_SIDE_WALL && d_right_back > MAX_DIST_SIDE_WALL)
+    {
+        turn_angle = -M_PI/2.0;
+    }
+    else {
+        turn_angle = M_PI;
+    }
+
+    ROS_ERROR("Turn %.3f rads. Missing Turner object", turn_angle);
+    return turn_angle;
 }
 
 void Wall_follower::compute_commands(double distance_front, double distance_back, bool wall_is_right,
