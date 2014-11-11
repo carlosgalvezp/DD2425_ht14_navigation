@@ -99,6 +99,10 @@ void Navigation::addParams()
     add_param("Robot_turning/W/KD", rt_params.kd_w, 0.3);
     add_param("Robot_turning/W/KI", rt_params.ki_w, 0.003);
 
+    add_param("wf/D_W/KP", params.kp_d_w, 0.0);
+    add_param("wf/D_W/KD", params.kd_d_w, 0.0);
+    add_param("wf/D_W/KI", params.ki_d_w, 0.0);
+
     wall_follower.setParams(params, rt_params);
 }
 

@@ -28,6 +28,7 @@ struct WF_PARAMS
    double kp_w, kd_w, ki_w;
    double wanted_v;
    double stopping_error_margin, stopped_turn_increaser, slow_start_increaser;
+   double kp_d_w, kd_d_w, ki_d_w;
 };
 
 class Wall_follower : rob::BasicNode
@@ -72,7 +73,8 @@ private:
 
     Controller controller_w;
     double kp_w, ki_w, kd_w;
-
+    Controller controller_wall_distance;
+    double kp_d_w, kd_d_w, ki_d_w;
     bool turning_;
 
     bool is_wall_in_front(double d_front);

@@ -18,6 +18,11 @@ void Wall_follower::setParams(const WF_PARAMS &params, const RT_PARAMS &rt_param
     slow_start_increaser = params.slow_start_increaser;
     this->rt_params = rt_params;
     controller_w = Controller(kp_w, kd_w, ki_w);
+
+    kp_d_w = params.kp_d_w;
+    kd_d_w = params.kd_d_w;
+    ki_d_w = params.ki_d_w;
+    controller_wall_distance = Controller(kp_d_w, kd_d_w, ki_d_w);
 }
 
 void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg, const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg, double &v, double &w)
@@ -117,20 +122,25 @@ void Wall_follower::compute_commands(double distance_front, double distance_back
     double delta;
     double diff;
     double avarage_distance_to_wall;
+    double diff_distance_wall = avarage_distance_to_wall -wanted_distance ;
+    double KP_DIST_WALL = 0.0; //0.002
 
     avarage_distance_to_wall = (distance_front + distance_back) / 2.0;
     diff = distance_front - distance_back;
-    delta = diff + (avarage_distance_to_wall - wanted_distance);
+    delta = diff;// + KP_DIST_WALL*diff_distance_wall;
+
+    controller_wall_distance.setData(wanted_distance, avarage_distance_to_wall);
+    double w_wall = controller_wall_distance.computeControl();
 
     if(wall_is_right)
     {
         controller_w.setData(0, delta);
-        w = controller_w.computeControl();
+        w = controller_w.computeControl() + w_wall ;
     }
     else
     {
         controller_w.setData(0, -delta);
-        w = controller_w.computeControl();
+        w = controller_w.computeControl() - w_wall;
     }
 
 
