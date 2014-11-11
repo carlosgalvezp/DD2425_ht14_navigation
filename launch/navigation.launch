@@ -1,0 +1,15 @@
+<launch>
+
+  <param name="navigation/wf/W/KP" value="0.02"/>
+  <param name="navigation/wf/W/KD" value="0.1"/>
+  <param name="navigation/wf/W/KI" value="0.0"/>
+  <param name="navigation/wf/linear_speed" value="0.15"/>
+
+  <param name="navigation/Robot_turning/W/KP" value="0.45"/>
+  <param name="navigation/Robot_turning/W/KD" value="0.3"/>
+  <param name="navigation/Robot_turning/W/KI" value="0.003"/>
+
+  <node pkg="navigation" type="navigation" name="navigation" output="screen">	
+
+  </node>
+</launch>
