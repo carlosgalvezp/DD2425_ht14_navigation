@@ -86,6 +86,8 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
             else{
                 // ** Ask boss to decide what to do
                 ROS_ERROR("(ASK BRAIN) COMPLETE THIS PART!");
+                v = 0.15;
+                w = 0.0;
             }
         }
     }

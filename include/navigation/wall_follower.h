@@ -7,7 +7,7 @@
 #include "ras_utils/basic_node.h"
 #include <navigation/robot_turning.h>
 
-#define MAX_DIST_FRONT_WALL     280       // [cm] Change this!!
+#define MAX_DIST_FRONT_WALL     250       // [cm] Change this!!
 #define MAX_DIST_SIDE_WALL     20       // [cm]
 
 #define DEFAULT_DEBUG_PRINT             true
