@@ -1,6 +1,7 @@
 #include <navigation/robot_turning.h>
 
-Robot_turning::Robot_turning(const RT_PARAMS &params)
+Robot_turning::Robot_turning():rotating_(false){}
+Robot_turning::Robot_turning(const RT_PARAMS &params):rotating_(false)
 {
     // Initial values
     w = 0.0;
@@ -18,9 +19,10 @@ void Robot_turning::compute_commands(const geometry_msgs::Pose2D::ConstPtr &msg,
     double current_angle = msg->theta;
     // compute angular velocity
     controller_w.setData(target_angle, current_angle);
-    w = controller_w.computeControl();
+    double diff = target_angle - current_angle;
+//    w = controller_w.computeControl();
+    w = 1.0 * RAS_Utils::sign(diff);
     v = 0;
-    double diff = current_angle - target_angle;
 
     if(fabs(diff) < MAX_ANGLE_DIFF)
     {
@@ -33,5 +35,6 @@ void Robot_turning::init(double base_angle, double delta_angle)
 {
     this->base_angle = base_angle;
     this->target_angle = base_angle+ delta_angle;
+    rotating_ = true;
 }
 

@@ -6,9 +6,6 @@
 #include <geometry_msgs/Twist.h>
 #include "ras_utils/controller.h"
 
-#define PUBLISH_RATE 10 // Hz
-#define QUEUE_SIZE 1000
-
 #define MAX_ANGLE_DIFF 0.1 // rad
 
 struct RT_PARAMS
@@ -21,7 +18,7 @@ struct RT_PARAMS
 class Robot_turning
 {
 public:
-    Robot_turning(){}
+    Robot_turning();
     Robot_turning(const RT_PARAMS &params);
 
     void compute_commands( const geometry_msgs::Pose2D::ConstPtr &msg, double &v, double &w );

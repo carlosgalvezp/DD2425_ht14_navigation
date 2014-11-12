@@ -7,8 +7,8 @@
 #include "ras_utils/basic_node.h"
 #include <navigation/robot_turning.h>
 
-#define MAX_DIST_FRONT_WALL     250       // [cm] Change this!!
-#define MAX_DIST_SIDE_WALL     20       // [cm]
+#define MAX_DIST_FRONT_WALL     12      // [cm]
+#define MAX_DIST_SIDE_WALL     25       // [cm]
 
 #define DEFAULT_DEBUG_PRINT             true
 #define DEFAULT_WANTED_DISTANCE         16.0
@@ -59,6 +59,8 @@ private:
     double w;
     // In which side is wall
     bool wall_is_right;
+
+    bool stopped, set_wanted_distance;
 
     ros::NodeHandle n_;
     ros::Publisher twist_pub_;

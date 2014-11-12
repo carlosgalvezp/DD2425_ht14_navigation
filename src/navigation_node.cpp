@@ -8,8 +8,8 @@
 
 #include <navigation/wall_follower.h>
 
-#define QUEUE_SIZE 10
-#define PUBLISH_RATE 10
+#define QUEUE_SIZE 1
+#define PUBLISH_RATE 50
 struct Navigation_Modes
 {
     static const int NAVIGATION_WALL_FOLLOW = 1;
@@ -74,8 +74,8 @@ Navigation::Navigation() : mode_(Navigation_Modes::NAVIGATION_WALL_FOLLOW)
     // Publisher
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
     // Subscriber
-    adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, QUEUE_SIZE,  &Navigation::adcCallback, this);
-    odo_sub_ = n.subscribe(TOPIC_ODOMETRY, QUEUE_SIZE, &Navigation::odoCallBack, this);
+    adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
+    odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallBack, this);
     // Service callback
     srv_in_ = n.advertiseService(SRV_NAVIGATION_IN, &Navigation::srvCallback, this);
 

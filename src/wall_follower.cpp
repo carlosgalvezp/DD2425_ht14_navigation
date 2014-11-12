@@ -1,6 +1,6 @@
 #include <navigation/wall_follower.h>
 
-Wall_follower::Wall_follower() : actual_v(0), turning_(false)
+Wall_follower::Wall_follower() : actual_v(0), turning_(false), stopped(false), set_wanted_distance(false)
 {
     controller_w = Controller(kp_w,kd_w,ki_w, 10);
 }
@@ -29,15 +29,27 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
 {
     if (adc_msg != nullptr && odo_msg != nullptr)
     {
+        if (stopped) 
+        {
+            ROS_WARN("Sleeping");
+            ros::Duration(1.0).sleep();
+            stopped = false;
+        }
         if (robot_turner.isRotating())
         {
             ROS_WARN("Turning");
             robot_turner.compute_commands(odo_msg, v, w);
+            if(!robot_turner.isRotating()) // Finish rotatin -> stop for again
+            {
+                v = 0;
+                w = 0;
+                stopped = true;
+                set_wanted_distance = false; // Re compute the wanted distance after rotation
+            }
             return;
         }
         // ** Check if we need to turn (we have a wall in front of us)
-        double dist_front_large_range = adc_msg->ch8;
-        ROS_ERROR("CONVERT LONG RANGE SENSOR TO CM!");
+        double dist_front_large_range = RAS_Utils::longSensorToDistanceInCM(adc_msg->ch8);
 
         double d_right_front = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch4);
         double d_right_back  = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch3);
@@ -45,6 +57,7 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
         double d_left_back   = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch2);
 
         ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range, d_right_front, d_right_back, d_left_front, d_left_back);
+        ROS_INFO("Wanted distance: ", wanted_distance);
         if(is_wall_in_front(dist_front_large_range))
         {
             ROS_INFO("!!! Start turning !!!");
@@ -54,7 +67,9 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
             double base_angle = odo_msg->theta;
             robot_turner = Robot_turning(rt_params);
             robot_turner.init(base_angle, delta_angle);
-            robot_turner.compute_commands(odo_msg, v, w);
+            v = 0;
+            w = 0;
+            stopped = true;
         }
         else
         {
@@ -64,9 +79,17 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
             {
                 // ** Check which wall is closest
                 double avg_d_wall_right = 0.5*(d_right_back + d_right_front);
-                double avg_d_wall_left  = 0.5*(d_left_back + d_left_front);
+                double avg_d_wall_left  = 0.5*(d_left_back + d_left_front);              
+                wall_is_right = (avg_d_wall_right < avg_d_wall_left);                
 
-                wall_is_right = (avg_d_wall_right < avg_d_wall_left);
+                // Set wanted distance
+                if(!set_wanted_distance)
+                {
+                    ROS_ERROR("Setting wanted distance");
+                    wanted_distance = wall_is_right ? avg_d_wall_right : avg_d_wall_left;
+                    set_wanted_distance = true;
+                }
+
                 double distance_front, distance_back;
                 if(wall_is_right)
                 {
@@ -88,13 +111,14 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
                 ROS_ERROR("(ASK BRAIN) COMPLETE THIS PART!");
                 v = 0.15;
                 w = 0.0;
+                set_wanted_distance = false;
             }
         }
     }
 }
 
 bool Wall_follower::is_wall_in_front(double d_front) {
-    return d_front > MAX_DIST_FRONT_WALL;
+    return d_front < MAX_DIST_FRONT_WALL;
 }
 
 double Wall_follower::compute_turning_angle(double d_front, double d_right_front, double d_right_back,
@@ -113,8 +137,6 @@ double Wall_follower::compute_turning_angle(double d_front, double d_right_front
     else {
         turn_angle = M_PI;
     }
-
-    ROS_ERROR("Turn %.3f rads. Missing Turner object", turn_angle);
     return turn_angle;
 }
 
