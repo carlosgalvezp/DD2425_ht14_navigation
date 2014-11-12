@@ -96,7 +96,7 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
         }
 
         // **
-        align_to_wall_and_wall_distance(w);
+        w = align_to_wall_and_wall_distance();
         v = wanted_v;
         return;
     }
@@ -138,36 +138,35 @@ double Wall_follower::compute_turning_angle()
     Will try to align to the wall and take distance to wall into account, using parameter w.
     Throws exception if no wall is usable.
 */
-void Wall_follower::align_to_wall_and_wall_distance(double &w, double increased_strength)
+double Wall_follower::align_to_wall_and_wall_distance(double increased_strength)
 {
-    align_to_wall_and_wall_distance(should_prioritize_right_wall(), w, increased_strength);
+    return align_to_wall_and_wall_distance(should_prioritize_right_wall(), increased_strength);
 }
 
 /*
     Will try to align to the wall to wall, using parameter w.
     Throws exception if no wall is usable.
 */
-void Wall_follower::align_to_wall(double &w, double increased_strength)
+double Wall_follower::align_to_wall(double increased_strength)
 {
-    align_to_wall(should_prioritize_right_wall(), w, increased_strength);
+    return align_to_wall(should_prioritize_right_wall(), increased_strength);
 }
 
 /*
     Will try to align using only distance to wall, using parameter w.
     Throws exception if no wall is usable.
 */
-void Wall_follower::align_using_wall_distance(double &w, double increased_strength)
+double Wall_follower::align_using_wall_distance(double increased_strength)
 {
-    align_to_wall_and_wall_distance(should_prioritize_right_wall(), w, increased_strength);
+    return align_to_wall_and_wall_distance(should_prioritize_right_wall(), increased_strength);
 }
 
 
-void Wall_follower::align_to_wall_and_wall_distance(bool wall_is_right, double &w, double increased_strength) {
+double Wall_follower::align_to_wall_and_wall_distance(bool wall_is_right, double increased_strength) {
 
-    align_using_wall_distance(wall_is_right, w, increased_strength);
-    double w_align_to_wall_distance = w;
-    align_to_wall(wall_is_right, w, increased_strength);
-    w += w_align_to_wall_distance;
+    double w_align_to_wall_distance = align_using_wall_distance(wall_is_right, increased_strength);
+    double w_align_to_wall = align_to_wall(wall_is_right, increased_strength);
+    return w_align_to_wall_distance + w_align_to_wall;
 }
 
 void Wall_follower::get_distance_front_and_back(bool wall_is_right, double &distance_front, double &distance_back, int &sign)
@@ -185,7 +184,7 @@ void Wall_follower::get_distance_front_and_back(bool wall_is_right, double &dist
     }
 }
 
-void Wall_follower::align_using_wall_distance(bool wall_is_right, double &w, double increased_strength)
+double Wall_follower::align_using_wall_distance(bool wall_is_right, double increased_strength)
 {
     if(!can_follow_wall(wall_is_right)) {
         throw std::runtime_error( "Trying to align using wall distance to: " + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall) while when we can't! Check code!" );
@@ -199,10 +198,10 @@ void Wall_follower::align_using_wall_distance(bool wall_is_right, double &w, dou
     double avarage_distance_to_wall = (distance_front + distance_back) / 2.0;
 
     controller_wall_distance.setData(wanted_distance, avarage_distance_to_wall * sign);
-    w = controller_wall_distance.computeControl() *  increased_strength;
+    return controller_wall_distance.computeControl() *  increased_strength;
 }
 
-void Wall_follower::align_to_wall(bool wall_is_right, double &w, double increased_strength) {
+double Wall_follower::align_to_wall(bool wall_is_right, double increased_strength) {
     if(!can_follow_a_wall()) {
         throw std::runtime_error( "Trying to follow wall:" + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall)! Check code!" );
     }
@@ -218,7 +217,7 @@ void Wall_follower::align_to_wall(bool wall_is_right, double &w, double increase
     double delta = diff * increased_strength; // + KP_DIST_WALL*diff_distance_wall;
 
     controller_align.setData(0, delta * sign);
-    w = controller_align.computeControl();
+    return controller_align.computeControl();
 }
 
 

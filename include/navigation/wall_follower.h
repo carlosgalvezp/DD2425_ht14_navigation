@@ -51,12 +51,12 @@ private:
     bool can_follow_left_wall();
     bool can_follow_a_wall();
 
-    void align_to_wall_and_wall_distance(bool wall_is_right, double &w, double increased_strength = 1.0);
-    void align_to_wall_and_wall_distance(double &w, double increased_strength = 1.0);
-    void align_using_wall_distance(bool wall_is_right, double &w, double increased_strength = 1.0);
-    void align_using_wall_distance(double &w, double increased_strength = 1.0);
-    void align_to_wall(double &w, double increased_strength = 1.0);
-    void align_to_wall(bool wall_is_right, double &w, double increased_strength = 1.0);
+    double align_to_wall_and_wall_distance(bool wall_is_right, double increased_strength = 1.0);
+    double align_to_wall_and_wall_distance(double increased_strength = 1.0);
+    double align_using_wall_distance(bool wall_is_right, double increased_strength = 1.0);
+    double align_using_wall_distance(double increased_strength = 1.0);
+    double align_to_wall(double increased_strength = 1.0);
+    double align_to_wall(bool wall_is_right, double increased_strength = 1.0);
 
     bool should_prioritize_right_wall();
     double get_distance_to_closest_wall();
