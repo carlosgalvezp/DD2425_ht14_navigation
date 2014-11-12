@@ -27,9 +27,10 @@ void Wall_follower::setParams(const WF_PARAMS &params, const RT_PARAMS &rt_param
 
 void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg, const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg, double &v, double &w)
 {
-    if (adc_msg == nullptr || odo_msg != nullptr)
+    if (adc_msg == nullptr || odo_msg == nullptr)
     {
-        throw std::invalid_argument("adc_msg or odo_msg are null!");
+        ROS_ERROR("adc_msg or odo_msg are null!");
+        return;
     }
 
     if (stopped)
@@ -166,6 +167,8 @@ double Wall_follower::align_to_wall_and_wall_distance(bool wall_is_right, double
 
     double w_align_to_wall_distance = align_using_wall_distance(wall_is_right, increased_strength);
     double w_align_to_wall = align_to_wall(wall_is_right, increased_strength);
+
+    ROS_WARN("%f: %f", w_align_to_wall_distance, w_align_to_wall);
     return w_align_to_wall_distance + w_align_to_wall;
 }
 
@@ -197,8 +200,8 @@ double Wall_follower::align_using_wall_distance(bool wall_is_right, double incre
 
     double avarage_distance_to_wall = (distance_front + distance_back) / 2.0;
 
-    controller_wall_distance.setData(wanted_distance, avarage_distance_to_wall * sign);
-    return controller_wall_distance.computeControl() *  increased_strength;
+    controller_wall_distance.setData(wanted_distance, avarage_distance_to_wall);
+    return controller_wall_distance.computeControl() *  increased_strength * sign;
 }
 
 double Wall_follower::align_to_wall(bool wall_is_right, double increased_strength) {
