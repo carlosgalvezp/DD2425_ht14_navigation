@@ -4,17 +4,11 @@
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
 #include <ras_srv_msgs/Command.h>
-
+#include <ras_utils/ras_names.h>
 #include <navigation/wall_follower.h>
 
 #define QUEUE_SIZE 10
 #define PUBLISH_RATE 10
-struct Navigation_Modes
-{
-    static const int NAVIGATION_WALL_FOLLOW = 1;
-    static const int NAVIGATION_GO_OBJECT   = 2;
-    static const int NAVIGATION_STOP        = 3;
-};
 
 class Navigation : rob::BasicNode
 {
@@ -59,7 +53,7 @@ int main (int argc, char* argv[])
     navigation.run();
 }
 
-Navigation::Navigation() : mode_(Navigation_Modes::NAVIGATION_WALL_FOLLOW)
+Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW)
 {
     addParams();
     print_params();
@@ -99,17 +93,17 @@ void Navigation::run()
         // ** Compute velocity commands
         switch(mode_)
         {
-            case Navigation_Modes::NAVIGATION_WALL_FOLLOW:
+            case RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW:
                 ROS_INFO("[Navigation] Wall following");
                 wall_follower.compute_commands(adc_data_, v, w);
                 break;
 
-            case Navigation_Modes::NAVIGATION_GO_OBJECT:
+            case RAS_Names::Navigation_Modes::NAVIGATION_GO_OBJECT:
                 ROS_INFO("[Navigation] Go to object");
 
             break;
 
-            case Navigation_Modes::NAVIGATION_STOP:
+            case RAS_Names::Navigation_Modes::NAVIGATION_STOP:
                 ROS_INFO("[Navigation] STOP");
                 v = 0;
                 w = 0;
