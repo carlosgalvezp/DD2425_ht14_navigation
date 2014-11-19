@@ -1,0 +1,26 @@
+<launch>
+
+  <!-- PID Params for alignment controller (go straight)-->
+  <param name="navigation/wf/W/KP" value="0.03"/> <!--0.04-->
+  <param name="navigation/wf/W/KD" value="0.4"/> <!--0.5-->
+  <param name="navigation/wf/W/KI" value="0.0000"/>
+  <param name="navigation/wf/linear_speed" value="0.10"/>
+  <param name="navigation/wf/wanted_distance" value="12"/>
+
+  <!-- PID Params for distance-to-wall controller -->
+  <param name="navigation/wf/D_W/KP" value="0.03"/> <!--0.06-->
+  <param name="navigation/wf/D_W/KD" value="0.2"/>  <!--0.2-->
+  <param name="navigation/wf/D_W/KI" value="0.0"/>
+
+  <!-- PID Params for turning controller -->
+
+  <param name="navigation/Robot_turning/W/KP" value="0.3"/><!--0.8-->
+  <param name="navigation/Robot_turning/W/KD" value="3.0"/><!--5.0-->
+  <param name="navigation/Robot_turning/W/KI" value="0.01"/><!--0.02-->
+
+
+
+  <node pkg="navigation" type="navigation" name="navigation" output="screen">	
+
+  </node>
+</launch>

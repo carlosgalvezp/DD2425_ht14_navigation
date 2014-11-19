@@ -1,5 +1,6 @@
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
+#include "geometry_msgs/Pose2D.h"
 #include "ras_arduino_msgs/ADConverter.h"
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
@@ -7,8 +8,8 @@
 #include <ras_utils/ras_names.h>
 #include <navigation/wall_follower.h>
 
-#define QUEUE_SIZE 10
-#define PUBLISH_RATE 10
+#define QUEUE_SIZE 1
+#define PUBLISH_RATE 50
 
 class Navigation : rob::BasicNode
 {
@@ -21,6 +22,7 @@ private:
     // ** Publishers and subscribers
     ros::Publisher twist_pub_;
     ros::Subscriber adc_sub_;
+    ros::Subscriber odo_sub_;
 
     // ** Services
     ros::ServiceClient srv_out_;
@@ -28,6 +30,7 @@ private:
 
     // ** Callback func when adc data recieved
     void adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg);
+    void odoCallBack(const geometry_msgs::Pose2D::ConstPtr& msg);
     // Service callback
     bool srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp);
 
@@ -37,8 +40,12 @@ private:
     Wall_follower wall_follower;
     double kp_w, ki_w, kd_w;
 
+    WF_PARAMS params;
+    RT_PARAMS rt_params;
+
     int mode_;
     ras_arduino_msgs::ADConverter::ConstPtr adc_data_;
+    geometry_msgs::Pose2D::ConstPtr odo_data_;
 };
 
 int main (int argc, char* argv[])
@@ -61,7 +68,8 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
     // Publisher
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
     // Subscriber
-    adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, QUEUE_SIZE,  &Navigation::adcCallback, this);
+    adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
+    odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallBack, this);
     // Service callback
     srv_in_ = n.advertiseService(SRV_NAVIGATION_IN, &Navigation::srvCallback, this);
 
@@ -70,7 +78,6 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
 
 void Navigation::addParams()
 {
-    WF_PARAMS params;
     add_param("wf/debug_print", params.debug_print, DEFAULT_DEBUG_PRINT);
     add_param("wf/wanted_distance", params.wanted_distance, DEFAULT_WANTED_DISTANCE);
     add_param("wf/W/KP", params.kp_w, DEFAULT_KP_W);
@@ -81,7 +88,16 @@ void Navigation::addParams()
     add_param("wf/stopping_error_margin", params.stopping_error_margin, DEFAULT_STOPPING_ERROR_MARGIN);
     add_param("wf/stopped_delta_increaser", params.stopped_turn_increaser, DEFUALT_STOPPED_TURN_INCREASER);
     add_param("wf/slow_start_increaser", params.slow_start_increaser, DEFUALT_SLOW_START_INCREASER);
-    wall_follower.setParams(params);
+
+    add_param("Robot_turning/W/KP", rt_params.kp_w, 0.45);
+    add_param("Robot_turning/W/KD", rt_params.kd_w, 0.3);
+    add_param("Robot_turning/W/KI", rt_params.ki_w, 0.003);
+
+    add_param("wf/D_W/KP", params.kp_d_w, 0.0);
+    add_param("wf/D_W/KD", params.kd_d_w, 0.0);
+    add_param("wf/D_W/KI", params.ki_d_w, 0.0);
+
+    wall_follower.setParams(params, rt_params);
 }
 
 void Navigation::run()
@@ -95,7 +111,7 @@ void Navigation::run()
         {
             case RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW:
                 ROS_INFO("[Navigation] Wall following");
-                wall_follower.compute_commands(adc_data_, v, w);
+                wall_follower.compute_commands(odo_data_, adc_data_, v, w);
                 break;
 
             case RAS_Names::Navigation_Modes::NAVIGATION_GO_OBJECT:
@@ -132,6 +148,11 @@ void Navigation::run()
 void Navigation::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg)
 {
     adc_data_ = msg;
+}
+
+void Navigation::odoCallBack(const geometry_msgs::Pose2D::ConstPtr& msg)
+{
+    odo_data_ = msg;
 }
 
 bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp)
