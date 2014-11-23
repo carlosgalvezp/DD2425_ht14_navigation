@@ -146,7 +146,7 @@ bool Wall_follower::is_wall_dangerously_close_to_wheels()
 
 void Wall_follower::start_backing_next_interval()
 {
-    robot_backer.init(-0.1, 6);
+    robot_backer.init(DANGEROUSLY_CLOSE_BACKUP_SPEED, DANGEROUSLY_CLOSE_BACKUP_DISTANCE);
 }
 
 void Wall_follower::start_turning_next_interval(double angle_right_now)
