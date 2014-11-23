@@ -25,13 +25,18 @@ void Wall_follower::setParams(const WF_PARAMS &params, const RT_PARAMS &rt_param
     controller_wall_distance = Controller(kp_d_w, kd_d_w, ki_d_w);
 }
 
-void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg, const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg, double &v, double &w)
+void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
+                                     const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg,
+                                     const std_msgs::Bool::ConstPtr &obj_msg,
+                                     double &v, double &w)
 {
     if (adc_msg == nullptr || odo_msg == nullptr)
     {
         ROS_ERROR("adc_msg or odo_msg are null!");
         return;
     }
+
+    bool vision_detected_wall = (obj_msg != nullptr && obj_msg->data) ? true : false;
 
     if (stopped)
     {
@@ -72,7 +77,7 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
     ROS_INFO("Wanted distance: ", wanted_distance);
 
 
-    if(is_wall_close_front())
+    if(is_wall_close_front() || vision_detected_wall)
     {
         // Stop the robot! And afterwards, start the rotating!
         ROS_INFO("!!! Start turning !!!");

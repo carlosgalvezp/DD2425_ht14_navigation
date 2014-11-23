@@ -1,6 +1,7 @@
 #include "ros/ros.h"
 #include "geometry_msgs/Twist.h"
 #include "geometry_msgs/Pose2D.h"
+#include "std_msgs/Bool.h"
 #include "ras_arduino_msgs/ADConverter.h"
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
@@ -23,6 +24,7 @@ private:
     ros::Publisher twist_pub_;
     ros::Subscriber adc_sub_;
     ros::Subscriber odo_sub_;
+    ros::Subscriber obj_sub_;
 
     // ** Services
     ros::ServiceClient srv_out_;
@@ -30,7 +32,8 @@ private:
 
     // ** Callback func when adc data recieved
     void adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg);
-    void odoCallBack(const geometry_msgs::Pose2D::ConstPtr& msg);
+    void odoCallback(const geometry_msgs::Pose2D::ConstPtr& msg);
+    void objCallback(const std_msgs::Bool::ConstPtr& msg);
     // Service callback
     bool srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp);
 
@@ -46,6 +49,7 @@ private:
     int mode_;
     ras_arduino_msgs::ADConverter::ConstPtr adc_data_;
     geometry_msgs::Pose2D::ConstPtr odo_data_;
+    std_msgs::Bool::ConstPtr obj_data_;
 };
 
 int main (int argc, char* argv[])
@@ -69,7 +73,8 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
     // Subscriber
     adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
-    odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallBack, this);
+    odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallback, this);
+    obj_sub_ = n.subscribe(TOPIC_OBSTACLE, 1, &Navigation::objCallback, this);
     // Service callback
     srv_in_ = n.advertiseService(SRV_NAVIGATION_IN, &Navigation::srvCallback, this);
 
@@ -111,7 +116,7 @@ void Navigation::run()
         {
             case RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW:
                 ROS_INFO("[Navigation] Wall following");
-                wall_follower.compute_commands(odo_data_, adc_data_, v, w);
+                wall_follower.compute_commands(odo_data_, adc_data_, obj_data_, v, w);
                 break;
 
             case RAS_Names::Navigation_Modes::NAVIGATION_GO_OBJECT:
@@ -150,9 +155,14 @@ void Navigation::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg)
     adc_data_ = msg;
 }
 
-void Navigation::odoCallBack(const geometry_msgs::Pose2D::ConstPtr& msg)
+void Navigation::odoCallback(const geometry_msgs::Pose2D::ConstPtr& msg)
 {
     odo_data_ = msg;
+}
+
+void Navigation::objCallback(const std_msgs::Bool::ConstPtr& msg)
+{
+    obj_data_ = msg;
 }
 
 bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp)

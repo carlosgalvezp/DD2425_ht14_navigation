@@ -2,6 +2,7 @@
 #define WALL_FOLLOWER_H
 #include "ros/ros.h"
 #include <ras_arduino_msgs/ADConverter.h>
+#include <std_msgs/Bool.h>
 #include <geometry_msgs/Pose2D.h>
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
@@ -39,7 +40,10 @@ public:
 
     Wall_follower();
     void setParams(const WF_PARAMS &params, const RT_PARAMS &rt_params);
-    void compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg, const ras_arduino_msgs::ADConverter::ConstPtr& msg , double &v, double &w);
+    void compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
+                          const ras_arduino_msgs::ADConverter::ConstPtr& adc_msg,
+                          const std_msgs::Bool::ConstPtr& obj_msg,
+                          double &v, double &w);
 
 private:
 
