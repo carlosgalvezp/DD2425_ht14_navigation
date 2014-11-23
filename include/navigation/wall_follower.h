@@ -7,6 +7,7 @@
 #include "ras_utils/controller.h"
 #include "ras_utils/basic_node.h"
 #include <navigation/robot_turning.h>
+#include <navigation/robot_backer.h>
 #include <math.h>
 
 #define MAX_DIST_FRONT_WALL     10      // [cm]
@@ -22,6 +23,8 @@
 #define DEFAULT_STOPPING_ERROR_MARGIN   6.0
 #define DEFUALT_STOPPED_TURN_INCREASER  5.0
 #define DEFUALT_SLOW_START_INCREASER    0.1     // in percentage, 1 means full throttle from start
+
+#define DANGEROUSLY_CLOSE_LIMIT         6.0
 
 
 struct WF_PARAMS
@@ -67,11 +70,16 @@ private:
     double get_distance_to_right_wall();
     double get_distance_to_left_wall();
 
+
     void stop_robot(double &v, double &w);
+    void start_turning_next_interval(double angle_right_now);
+    void start_backing_next_interval();
+    bool is_wall_dangerously_close_to_wheels();
 
     void get_distance_front_and_back(bool wall_is_right, double &distance_front, double &distance_back, int &sign);
 
     Robot_turning robot_turner;
+    Robot_backer robot_backer;
     RT_PARAMS rt_params;
 
     bool debug_print;

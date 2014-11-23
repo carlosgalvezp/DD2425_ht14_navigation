@@ -36,8 +36,6 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
         return;
     }
 
-    bool vision_detected_wall = (obj_msg != nullptr && obj_msg->data) ? true : false;
-
     if (stopped)
     {
         // We just stopped, always sleep a little after a stop
@@ -45,6 +43,25 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
         ros::Duration(1.0).sleep();
         stopped = false;
         // Done sleeping, now continue
+    }
+
+    if (robot_backer.is_backing())
+    {
+        // We are currently backing up some distance, let it do its shit!
+        ROS_WARN("Backing");
+        if(!robot_backer.is_start_pos_set())
+        {
+            // Needed in order to make sure that the robot is truly stopped when taking the first readings.
+            robot_backer.set_start_pos(odo_msg->x, odo_msg->y);
+        }
+
+        robot_backer.compute_commands(odo_msg->x, odo_msg->y, v, w);
+        if(!robot_backer.is_backing())  // Finish backing -> stop again
+        {
+            stop_robot(v, w);
+            wanted_distance_recently_set = false; // Might as well reset it after backing.
+        }
+        return;
     }
 
 
@@ -76,15 +93,22 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
     ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range, d_right_front, d_right_back, d_left_front, d_left_back);
     ROS_INFO("Wanted distance: ", wanted_distance);
 
+    if(is_wall_dangerously_close_to_wheels())
+    {
+        // Stop the robot. Then back up some distance
+        ROS_ERROR("!!! Dangerously close to wheels !!!");
+        start_backing_next_interval(); // TODO: We might want to set this value after we have stopped
+        stop_robot(v, w);
+        return;
+    }
+
+
+    bool vision_detected_wall = (obj_msg != nullptr && obj_msg->data) ? true : false;
 
     if(is_wall_close_front() || vision_detected_wall)
     {
         // Stop the robot! And afterwards, start the rotating!
-        ROS_INFO("!!! Start turning !!!");
-        double delta_angle = compute_turning_angle();
-        double base_angle = odo_msg->theta;
-        robot_turner = Robot_turning(rt_params);
-        robot_turner.init(base_angle, delta_angle);
+        start_turning_next_interval(odo_msg->theta);
         stop_robot(v, w);
         return;
     }
@@ -113,6 +137,26 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
     v = wanted_v;
     w = 0.0;
     wanted_distance_recently_set = false;
+}
+
+bool Wall_follower::is_wall_dangerously_close_to_wheels()
+{
+    return d_right_front < DANGEROUSLY_CLOSE_LIMIT || d_left_front < DANGEROUSLY_CLOSE_LIMIT;
+}
+
+void Wall_follower::start_backing_next_interval()
+{
+    robot_backer.init(-0.1, 6);
+}
+
+void Wall_follower::start_turning_next_interval(double angle_right_now)
+{
+    ROS_INFO("!!! Initiate turning !!!");
+    double delta_angle = compute_turning_angle();
+    double base_angle = angle_right_now;
+    robot_turner = Robot_turning(rt_params);
+    robot_turner.init(base_angle, delta_angle);
+
 }
 
 void Wall_follower::stop_robot(double &v, double &w)
