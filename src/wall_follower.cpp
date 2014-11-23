@@ -59,7 +59,7 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
         if(!robot_backer.is_backing())  // Finish backing -> stop again
         {
             stop_robot(v, w);
-            wanted_distance_recently_set = false; // Might as well reset it after backing.
+            start_turning_next_interval(odo_msg->theta);
         }
         return;
     }
