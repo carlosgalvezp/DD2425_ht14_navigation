@@ -10,7 +10,7 @@
 #include <navigation/robot_backer.h>
 #include <math.h>
 
-#define MAX_DIST_FRONT_WALL     12      // [cm]
+#define MAX_DIST_FRONT_WALL     10      // [cm]
 #define MAX_DIST_SIDE_WALL     25       // [cm]
 
 #define DEFAULT_DEBUG_PRINT             true
