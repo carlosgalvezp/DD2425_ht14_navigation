@@ -24,7 +24,7 @@
 #define DEFUALT_STOPPED_TURN_INCREASER  5.0
 #define DEFUALT_SLOW_START_INCREASER    0.1     // in percentage, 1 means full throttle from start
 
-#define DANGEROUSLY_CLOSE_LIMIT             6.0
+#define DANGEROUSLY_CLOSE_LIMIT             7.5
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   7
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 

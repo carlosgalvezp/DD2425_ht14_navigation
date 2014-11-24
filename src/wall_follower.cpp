@@ -239,7 +239,8 @@ void Wall_follower::get_distance_front_and_back(bool wall_is_right, double &dist
 double Wall_follower::align_using_wall_distance(bool wall_is_right, double increased_strength)
 {
     if(!can_follow_wall(wall_is_right)) {
-        throw std::runtime_error( "Trying to align using wall distance to: " + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall) while when we can't! Check code!" );
+        std::string error_msg = "Trying to align using wall distance to: " + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall) while when we can't! Check code!";
+        ROS_ERROR(error_msg.c_str());
     }
 
     int sign;
