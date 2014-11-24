@@ -14,7 +14,7 @@ public:
     {
         reset_start_pos();
         this->wanted_v = wanted_v;
-        this->wanted_distance = wanted_distance;
+        this->wanted_distance = wanted_distance / 100;
         backing = true;
     }
 
