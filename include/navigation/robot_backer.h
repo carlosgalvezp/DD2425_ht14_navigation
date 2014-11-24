@@ -8,7 +8,7 @@
 class Robot_backer
 {
 public:
-    Robot_backer() {}
+    Robot_backer() : backing(false) {}
 
     void init(double wanted_v, double wanted_distance)
     {
