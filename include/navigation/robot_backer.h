@@ -12,8 +12,7 @@ public:
 
     void init(double wanted_v, double wanted_distance)
     {
-        this->start_x = -1;
-        this->start_y = -1;
+        reset_start_pos();
         this->wanted_v = wanted_v;
         this->wanted_distance = wanted_distance;
         backing = true;
@@ -29,8 +28,10 @@ public:
     {
         double traveled_distance = get_traveled_distance(x, y);
 
+        ROS_INFO("%f.3 : %f.3", traveled_distance, wanted_distance);
         w = 0;
         if(traveled_distance >= wanted_distance) {
+            reset_start_pos();
             backing = false;
             v = 0;
         } else
@@ -59,6 +60,12 @@ private:
     double get_traveled_distance(double x, double y)
     {
         return sqrt(pow(x-start_x, 2) + pow(y-start_y, 2));
+    }
+
+    void reset_start_pos()
+    {
+        start_x = -1;
+        start_y = -1;
     }
 
 };
