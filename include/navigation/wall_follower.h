@@ -28,6 +28,8 @@
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   7
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
+#define MAX_SENSOR_DIFF                 1.0 // cm for alignment
+
 
 struct WF_PARAMS
 {
@@ -54,7 +56,7 @@ private:
 
     //bool can_follow_wall(double d_front, double d_back);
     bool is_wall_close_front();
-    bool while_standing_still_align_wall();
+    bool while_standing_still_align_wall(double &v, double &w);
     bool can_follow_wall(bool right_wall);
     bool can_follow_right_wall();
     bool can_follow_left_wall();
@@ -121,5 +123,7 @@ private:
     double kp_d_w, kd_d_w, ki_d_w;
 
     bool is_wall_close_front(double d_front);
+
+    bool need_alignment;
 };
 #endif // WALL_FOLLOWER_H

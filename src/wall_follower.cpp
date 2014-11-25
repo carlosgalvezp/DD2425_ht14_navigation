@@ -23,6 +23,7 @@ void Wall_follower::setParams(const WF_PARAMS &params, const RT_PARAMS &rt_param
     kd_d_w = params.kd_d_w;
     ki_d_w = params.ki_d_w;
     controller_wall_distance = Controller(kp_d_w, kd_d_w, ki_d_w);
+    need_alignment = false;
 }
 
 void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
@@ -74,10 +75,10 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
         {
             stop_robot(v, w);
             wanted_distance_recently_set = false; // Re compute the wanted distance after rotation
+            need_alignment = true;
         }
         return;
     }
-
 
     // Save input from adc!
     {
@@ -90,8 +91,18 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
         d_left_back   = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch2);
     }
 
+    if( need_alignment )
+    {
+        ROS_WARN("Aligning");
+        while_standing_still_align_wall(v, w);
+
+        return;
+    }
+
     ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range, d_right_front, d_right_back, d_left_front, d_left_back);
     ROS_INFO("Wanted distance: ", wanted_distance);
+
+
 
     if(is_wall_dangerously_close_to_wheels())
     {
@@ -275,8 +286,8 @@ double Wall_follower::align_to_wall(bool wall_is_right, double increased_strengt
 
 
 // Will return true when it feels it is aligned, or return true directly if it can not align
-//TODO:: Not compleated yet!
-bool Wall_follower::while_standing_still_align_wall() {
+
+bool Wall_follower::while_standing_still_align_wall( double &v, double &w ) {
     if(!can_follow_a_wall()) {
         return true;
     }
@@ -284,11 +295,31 @@ bool Wall_follower::while_standing_still_align_wall() {
     if(can_follow_left_wall())
     {
         //we can align to the left wall!
-
+        double sensor_diff = d_left_front - d_left_back;
+        ROS_INFO("left sensor diff: %f", sensor_diff);
+        w = 0.5 * RAS_Utils::sign(sensor_diff);
+        v = 0;
+        if( fabs(sensor_diff) < MAX_SENSOR_DIFF )
+        {
+            stop_robot(v, w);
+            need_alignment = false;
+            return true;
+        }
 
     } else if(can_follow_right_wall())
     {
         //we can align to the right wall!
+        double sensor_diff = d_right_back - d_right_front;
+        ROS_INFO("right sensor diff: %f", sensor_diff);
+        w = 0.5 * RAS_Utils::sign(sensor_diff);
+        v = 0;
+        if( fabs(sensor_diff) < MAX_SENSOR_DIFF )
+        {
+            stop_robot(v, w);
+            need_alignment = false;
+            return true;
+        }
+
     } else {
         throw std::runtime_error( "can_follow_a_wall and/or can_follow_wall not working! Check code" );
     }
