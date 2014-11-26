@@ -118,6 +118,7 @@ void Wall_follower::compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_
 
     if(is_wall_close_front() || vision_detected_wall)
     {
+        ROS_ERROR("START TURNING TO AVOID WALL!!");
         // Stop the robot! And afterwards, start the rotating!
         start_turning_next_interval(odo_msg->theta);
         stop_robot(v, w);
@@ -289,6 +290,7 @@ double Wall_follower::align_to_wall(bool wall_is_right, double increased_strengt
 
 bool Wall_follower::while_standing_still_align_wall( double &v, double &w ) {
     if(!can_follow_a_wall()) {
+        need_alignment = false;
         return true;
     }
 
