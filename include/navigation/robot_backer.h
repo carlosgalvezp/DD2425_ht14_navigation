@@ -5,34 +5,33 @@
 #include <math.h>
 
 
-class Robot_backer
+class RobotBacker
 {
 public:
-    Robot_backer() : backing(false) {}
+    RobotBacker() : activated(false) {}
 
-    void init(double wanted_v, double wanted_distance)
+    void activate(double wanted_v, double wanted_distance)
     {
-        reset_start_pos();
+        resetStartPos();
         this->wanted_v = wanted_v;
         this->wanted_distance = wanted_distance / 100;
-        backing = true;
+        activated = true;
     }
 
-    void set_start_pos(double start_x, double start_y)
+    void setStartPos(double start_x, double start_y)
     {
         this->start_x = start_x;
         this->start_y = start_y;
     }
 
-    void compute_commands(double x, double y, double &v, double &w )
+    void run(double x, double y, double &v, double &w )
     {
-        double traveled_distance = get_traveled_distance(x, y);
+        double traveled_distance = getTraveledDistance(x, y);
 
-        ROS_INFO("%f.3 : %f.3", traveled_distance, wanted_distance);
         w = 0;
         if(traveled_distance >= wanted_distance) {
-            reset_start_pos();
-            backing = false;
+            resetStartPos();
+            activated = false;
             v = 0;
         } else
         {
@@ -40,29 +39,29 @@ public:
         }
     }
 
-    bool is_backing()
+    bool isActive()
     {
-        return backing;
+        return activated;
     }
 
-    bool is_start_pos_set()
+    bool isStartPosSet()
     {
         return start_x >= 0;
     }
 
 private:
 
-    bool backing;
+    bool activated;
     double wanted_v;
     double wanted_distance;
     double start_x, start_y;
 
-    double get_traveled_distance(double x, double y)
+    double getTraveledDistance(double x, double y)
     {
         return sqrt(pow(x-start_x, 2) + pow(y-start_y, 2));
     }
 
-    void reset_start_pos()
+    void resetStartPos()
     {
         start_x = -1;
         start_y = -1;

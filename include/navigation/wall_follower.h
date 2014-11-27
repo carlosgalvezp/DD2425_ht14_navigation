@@ -1,12 +1,11 @@
 #ifndef WALL_FOLLOWER_H
 #define WALL_FOLLOWER_H
-#include "ros/ros.h"
+#include <ros/ros.h>
 #include <ras_arduino_msgs/ADConverter.h>
 #include <std_msgs/Bool.h>
 #include <geometry_msgs/Pose2D.h>
-#include "ras_utils/controller.h"
-#include "ras_utils/basic_node.h"
-#include <navigation/robot_turning.h>
+#include <ras_utils/controller.h>
+#include <ras_utils/basic_node.h>
 #include <navigation/robot_backer.h>
 #include <math.h>
 
@@ -35,91 +34,222 @@ struct WF_PARAMS
    double wanted_distance;
    double kp_w, kd_w, ki_w;
    double wanted_v;
-   double stopping_error_margin, stopped_turn_increaser, slow_start_increaser;
    double kp_d_w, kd_d_w, ki_d_w;
 };
 
-class Wall_follower : rob::BasicNode
+class WallFollower : rob::BasicNode
 {
 public:
 
-    Wall_follower();
-    void setParams(const WF_PARAMS &params, const RT_PARAMS &rt_params);
-    void compute_commands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
-                          const ras_arduino_msgs::ADConverter::ConstPtr& adc_msg,
-                          const std_msgs::Bool::ConstPtr& obj_msg,
-                          double &v, double &w);
+    WallFollower() : wanted_distance_recently_set_(false) {}
+    void setParams(const WF_PARAMS &params)
+    {
+        debug_print_ = params.debug_print;
+        wanted_distance_ = params.wanted_distance;
+        wanted_v_ = params.wanted_v;
+
+        controller_align_ = Controller(params.kp_w, params.kd_w, params.ki_w);
+        controller_wall_distance_ = Controller(params.kp_d_w, params.kd_d_w, params.ki_d_w);
+    }
+
+    void run(double &v, double &w, double d_right_front, double d_left_front, double d_right_back, double d_left_back)
+    {
+        d_right_front_ = d_right_front;
+        d_left_front_ = d_left_front;
+        d_right_back_ = d_right_back;
+        d_left_back_ = d_left_back;
+
+        if(canFollowAWall()) {
+            // Set wanted distance
+            if(!wanted_distance_recently_set_)
+            {
+                ROS_ERROR("Setting wanted distance");
+                wanted_distance_ = getDistanceToClosestWall();
+                wanted_distance_recently_set_ = true;
+            }
+
+            // **
+            w = alignToWallAndWallDistance();
+            v = wanted_v_;
+            return;
+        }
+
+
+        // ** Ask boss to decide what to do
+        ROS_WARN("Wall follower have no wall to follow. Trying to go straight");
+        v = wanted_v_;
+        w = 0.0;
+        wanted_distance_recently_set_ = false;
+    }
+
+    void resetWantedDistance()
+    {
+        wanted_distance_recently_set_ = false;
+    }
 
 private:
 
-    //bool can_follow_wall(double d_front, double d_back);
-    bool is_wall_close_front();
-    bool while_standing_still_align_wall();
-    bool can_follow_wall(bool right_wall);
-    bool can_follow_right_wall();
-    bool can_follow_left_wall();
-    bool can_follow_a_wall();
+    double d_right_front_, d_left_front_, d_right_back_, d_left_back_;
 
-    double align_to_wall_and_wall_distance(bool wall_is_right, double increased_strength = 1.0);
-    double align_to_wall_and_wall_distance(double increased_strength = 1.0);
-    double align_using_wall_distance(bool wall_is_right, double increased_strength = 1.0);
-    double align_using_wall_distance(double increased_strength = 1.0);
-    double align_to_wall(double increased_strength = 1.0);
-    double align_to_wall(bool wall_is_right, double increased_strength = 1.0);
+    bool wanted_distance_recently_set_;
 
-    bool should_prioritize_right_wall();
-    double get_distance_to_closest_wall();
-    double get_distance_to_right_wall();
-    double get_distance_to_left_wall();
+    double wanted_distance_;
 
+    double wanted_v_;
 
-    void stop_robot(double &v, double &w);
-    void start_turning_next_interval(double angle_right_now);
-    void start_backing_next_interval();
-    bool is_wall_dangerously_close_to_wheels();
+    bool debug_print_;
 
-    void get_distance_front_and_back(bool wall_is_right, double &distance_front, double &distance_back, int &sign);
-
-    Robot_turning robot_turner;
-    Robot_backer robot_backer;
-    RT_PARAMS rt_params;
-
-    bool debug_print;
-
-    // adc data from IR sensors
-    double wanted_distance;
-
-    double stopping_error_margin;
-
-    double stopped_turn_increaser;
-    double slow_start_increaser;
-
-    double wanted_v;
-    double actual_v;
-
-    double w;
     // In which side is wall
-    bool wall_is_right;
+    bool wall_is_right_;
 
-    bool stopped, wanted_distance_recently_set;
+    Controller controller_align_;
+    Controller controller_wall_distance_;
 
-    double d_right_front, d_left_front, d_right_back, d_left_back, dist_front_large_range;
+    bool isWallCloseFront(double d_front);
 
-    ros::NodeHandle n_;
-    ros::Publisher twist_pub_;
-    ros::Subscriber adc_sub_;
-    // Callback func when adc data recieved
-    void compute_commands(double d_front, double d_back, bool wall_is_right, double &v, double &w);
+    /*
+        Will try to align to the wall and take distance to wall into account, using parameter w.
+        Throws exception if no wall is usable.
+    */
+    double alignToWallAndWallDistance(double increased_strength = 1.0)
+    {
+        return alignToWallAndWallDistance(shouldPrioritizeRightWall(), increased_strength);
+    }
 
-    void addParams();
+    /*
+        Will try to align to the wall to wall, using parameter w.
+        Throws exception if no wall is usable.
+    */
+    double alignToWall(double increased_strength)
+    {
+        return alignToWall(shouldPrioritizeRightWall(), increased_strength);
+    }
 
-    double compute_turning_angle();
+    /*
+        Will try to align using only distance to wall, using parameter w.
+        Throws exception if no wall is usable.
+    */
+    double alignUsingWallDistance(double increased_strength)
+    {
+        return alignToWallAndWallDistance(shouldPrioritizeRightWall(), increased_strength);
+    }
 
-    Controller controller_align;
-    double kp_w, ki_w, kd_w;
-    Controller controller_wall_distance;
-    double kp_d_w, kd_d_w, ki_d_w;
 
-    bool is_wall_close_front(double d_front);
+    double alignToWallAndWallDistance(bool wall_is_right, double increased_strength) {
+
+        double w_align_to_wall_distance = alignUsingWallDistance(wall_is_right, increased_strength);
+        double w_align_to_wall = alignToWall(wall_is_right, increased_strength);
+
+        ROS_WARN("%f: %f", w_align_to_wall_distance, w_align_to_wall);
+        return w_align_to_wall_distance + w_align_to_wall;
+    }
+
+    void getDistanceFrontAndBack(bool wall_is_right, double &distance_front, double &distance_back, int &sign)
+    {
+        if(wall_is_right) {
+            distance_front = d_right_front_;
+            distance_back = d_right_back_;
+            sign = 1;
+        }
+        else
+        {
+            distance_front = d_left_front_;
+            distance_back = d_left_back_;
+            sign = -1;
+        }
+    }
+
+    double alignUsingWallDistance(bool wall_is_right, double increased_strength)
+    {
+        if(!canFollowWall(wall_is_right)) {
+            std::string error_msg = "Trying to align using wall distance to: " + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall) while when we can't! Check code!";
+            ROS_ERROR(error_msg.c_str());
+        }
+
+        int sign;
+        double distance_front, distance_back;
+
+        getDistanceFrontAndBack(wall_is_right, distance_front, distance_back, sign);
+
+        double avarage_distance_to_wall = (distance_front + distance_back) / 2.0;
+
+        controller_wall_distance_.setData(wanted_distance_, avarage_distance_to_wall);
+        return controller_wall_distance_.computeControl() *  increased_strength * sign;
+    }
+
+    double alignToWall(bool wall_is_right, double increased_strength) {
+        if(!canFollowAWall()) {
+            throw std::runtime_error( "Trying to follow wall:" + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall)! Check code!" );
+        }
+
+        int sign;
+        double distance_front, distance_back;
+
+        getDistanceFrontAndBack(wall_is_right, distance_front, distance_back, sign);
+
+        if(debug_print_) ROS_INFO("Following %s wall", (wall_is_right) ? "right" : "left");
+
+        double diff = distance_front - distance_back;
+        double delta = diff * increased_strength; // + KP_DIST_WALL*diff_distance_wall;
+
+        controller_align_.setData(0, delta * sign);
+        return controller_align_.computeControl();
+    }
+
+
+    bool canFollowWall(double d_front, double d_back)
+    {
+        return d_front < MAX_DIST_SIDE_WALL && d_back < MAX_DIST_SIDE_WALL;
+    }
+
+    bool canFollowWall(bool right_wall)
+    {
+        if(right_wall)
+        {
+            return canFollowRightWall();
+        }else
+        {
+            return canFollowLeftWall();
+        }
+    }
+
+    bool canFollowAWall()
+    {
+        return canFollowLeftWall() || canFollowRightWall();
+    }
+
+    bool canFollowLeftWall()
+    {
+        return canFollowWall(d_left_front_, d_left_back_);
+    }
+
+    bool canFollowRightWall()
+    {
+        return canFollowWall(d_right_front_, d_right_back_);
+    }
+
+
+    double getDistanceToLeftWall()
+    {
+        return  0.5*(d_left_back_ + d_left_front_);
+    }
+
+    double getDistanceToRightWall()
+    {
+        return 0.5*(d_right_back_ + d_right_front_);
+    }
+
+    double getDistanceToClosestWall()
+    {
+        return fmin(getDistanceToLeftWall(), getDistanceToRightWall());
+    }
+
+    bool shouldPrioritizeRightWall()
+    {
+        double avg_d_wall_right = 0.5*(d_right_back_ + d_right_front_);
+        double avg_d_wall_left  = 0.5*(d_left_back_ + d_left_front_);
+        return getDistanceToRightWall() < getDistanceToLeftWall();
+    }
+
 };
 #endif // WALL_FOLLOWER_H
