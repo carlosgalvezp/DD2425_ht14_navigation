@@ -8,13 +8,15 @@
 #include <navigation/robot_turner.h>
 #include <navigation/robot_stopper.h>
 #include <navigation/wall_follower.h>
+#include <navigation/robot_aligner.h>
 
 #include <stack>
 
 #define COMMAND_STOP                    "stop"
 #define COMMAND_EXPLORER_TURN           "explorer_turn"
 #define COMMAND_BACKUP                  "backup"
-#define COMMAND_DANGER_CLOSE_BACKING    "command_danger_close_backing"
+#define COMMAND_DANGER_CLOSE_BACKING    "danger_close_backing"
+#define COMMAND_ALIGN                   "aling"
 
 class Navigator
 {
@@ -104,6 +106,7 @@ private:
     RobotStopper robot_stopper_;
     RobotBacker robot_backer_;
     RobotTurner robot_turner_;
+    RobotAligner robot_aligner_;
     WallFollower wall_follower_;
 
     std::stack<CommandInfo> command_stack_;
@@ -113,14 +116,22 @@ private:
 
     void exploreRandomly(double &v, double &w)
     {
+        auto turnCommandCombo = [&command_stack_](){
+                command_stack_.push(CommandInfo(COMMAND_STOP));
+                command_stack_.push(CommandInfo(COMMAND_ALIGN));
+                command_stack_.push(CommandInfo(COMMAND_STOP));
+                command_stack_.push(CommandInfo(COMMAND_EXPLORER_TURN));
+                command_stack_.push(CommandInfo(COMMAND_STOP));
+        };
+
+
         if(isWallDangerouslyCloseToWheels())
         {
             wantedDistanceRecentlySet_ = false;
             // Stop the robot. Then back up some distance
             ROS_ERROR("!!! Dangerously close to wheels !!!");
-            command_stack_.push(CommandInfo(COMMAND_EXPLORER_TURN));
-            command_stack_.push(CommandInfo(COMMAND_STOP));
-            command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING)); // TODO: We might want to set this value after we have stopped
+            turnCommandCombo();
+            command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
             command_stack_.push(CommandInfo(COMMAND_STOP));
             return;
         }
@@ -129,9 +140,7 @@ private:
         {
             wantedDistanceRecentlySet_ = false;
             // Stop the robot! And afterwards, start the rotating!
-            command_stack_.push(CommandInfo(COMMAND_STOP));
-            command_stack_.push(CommandInfo(COMMAND_EXPLORER_TURN));
-            command_stack_.push(CommandInfo(COMMAND_STOP));
+            turnCommandCombo();
             return;
         }
 
@@ -166,6 +175,18 @@ private:
 
         if(currentlyTurning(v, w)) return true;
 
+        if(currentlyAligning(v, w)) return true;
+
+    }
+
+
+    bool currentlyAligning(double &v, double &w)
+    {
+        if(robot_aligner_.isActive()) {
+            robot_aligner_.run(v, w, d_right_front_, d_left_front_, d_right_back_, d_left_back_);
+            return true;
+        }
+        return false;
     }
 
     /**

@@ -28,6 +28,8 @@
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
 
+
+
 struct WF_PARAMS
 {
    bool debug_print;
@@ -41,7 +43,7 @@ class WallFollower : rob::BasicNode
 {
 public:
 
-    WallFollower() : wanted_distance_recently_set_(false) {}
+    WallFollower() : wanted_distance_recently_set_(false), need_alignment(false) {}
     void setParams(const WF_PARAMS &params)
     {
         debug_print_ = params.debug_print;
@@ -98,6 +100,8 @@ private:
     double wanted_v_;
 
     bool debug_print_;
+
+    bool need_alignment;
 
     // In which side is wall
     bool wall_is_right_;
@@ -228,7 +232,6 @@ private:
         return canFollowWall(d_right_front_, d_right_back_);
     }
 
-
     double getDistanceToLeftWall()
     {
         return  0.5*(d_left_back_ + d_left_front_);
@@ -246,10 +249,9 @@ private:
 
     bool shouldPrioritizeRightWall()
     {
-        double avg_d_wall_right = 0.5*(d_right_back_ + d_right_front_);
-        double avg_d_wall_left  = 0.5*(d_left_back_ + d_left_front_);
+        if(!canFollowRightWall()) return false;
+        if(!canFollowLeftWall()) return true;
         return getDistanceToRightWall() < getDistanceToLeftWall();
     }
-
 };
 #endif // WALL_FOLLOWER_H
