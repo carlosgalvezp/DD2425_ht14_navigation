@@ -151,7 +151,7 @@ private:
     {
         CommandInfo command_info = command_stack_.top();
         command_stack_.pop();
-        ROS_INFO("Activated command: %s ", command_info.command);
+        ROS_WARN("Activated command: %s ", command_info.command.c_str());
         activateStackedCommand(command_info, v, w);
     }
 
