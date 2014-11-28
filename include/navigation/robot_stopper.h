@@ -24,9 +24,11 @@ public:
 
     void sleepIfStopped()
     {
-        ROS_WARN("Sleeping");
-        ros::Duration(stop_time_).sleep();
-        stopped_ = false;
+        if(stopped) {
+            ROS_WARN("Sleeping");
+            ros::Duration(stop_time_).sleep();
+            stopped_ = false;
+        }
     }
 
 private:
