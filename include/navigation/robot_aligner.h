@@ -28,7 +28,7 @@ public:
         } else if(RAS_Utils::sensors::canFollowRightWall(sd))
         {
             //we can align to the right wall!
-            sensor_diff = sd.right_front_ - sd.right_back_;
+            sensor_diff = sd.right_back_ - sd.right_front_;
             ROS_INFO("right sensor diff: %f", sensor_diff);
         } else
         {
