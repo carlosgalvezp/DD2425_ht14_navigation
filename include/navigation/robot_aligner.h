@@ -23,12 +23,12 @@ public:
         if(canFollowWall(sd.left_front_, sd.left_back_))
         {
             //we can align to the left wall!
-            double sensor_diff = sd.left_front_ - sd.left_back_;
+            sensor_diff = sd.left_front_ - sd.left_back_;
             ROS_INFO("left sensor diff: %f", sensor_diff);
         } else if(canFollowWall(sd.right_front_, sd.right_back_))
         {
             //we can align to the right wall!
-            double sensor_diff = sd.right_front_ - sd.right_back_;
+            sensor_diff = sd.right_front_ - sd.right_back_;
             ROS_INFO("right sensor diff: %f", sensor_diff);
         } else
         {
