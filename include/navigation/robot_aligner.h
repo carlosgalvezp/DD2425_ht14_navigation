@@ -20,12 +20,12 @@ public:
     void run(double &v, double &w, RAS_Utils::sensors::SensorDistances sd)
     {
         double sensor_diff;
-        if(canFollowWall(sd.left_front_, sd.left_back_))
+        if(RAS_Utils::sensors::canFollowLeftWall(sd))
         {
             //we can align to the left wall!
             sensor_diff = sd.left_front_ - sd.left_back_;
             ROS_INFO("left sensor diff: %f", sensor_diff);
-        } else if(canFollowWall(sd.right_front_, sd.right_back_))
+        } else if(RAS_Utils::sensors::canFollowRightWall(sd))
         {
             //we can align to the right wall!
             sensor_diff = sd.right_front_ - sd.right_back_;
@@ -60,11 +60,6 @@ public:
 
 private:
     bool currently_aligning_;
-
-    bool canFollowWall(double d_front, double d_back)
-    {
-        return d_front < MAX_DIST_SIDE_WALL && d_back < MAX_DIST_SIDE_WALL;
-    }
 };
 
 #endif // ROBOT_ALIGNER_H

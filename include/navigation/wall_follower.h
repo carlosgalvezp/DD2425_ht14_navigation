@@ -49,12 +49,12 @@ public:
     {
         this->sd = sd;
 
-        if(canFollowAWall()) {
+        if(RAS_Utils::sensors::canFollowAWall(sd)) {
             // Set wanted distance
             if(!wanted_distance_recently_set_)
             {
                 ROS_ERROR("Setting wanted distance");
-                wanted_distance_ = getDistanceToClosestWall();
+                wanted_distance_ = RAS_Utils::sensors::getDistanceToClosestWall(sd);
                 wanted_distance_recently_set_ = true;
             }
 
@@ -105,7 +105,7 @@ private:
     */
     double alignToWallAndWallDistance(double increased_strength = 1.0)
     {
-        return alignToWallAndWallDistance(shouldPrioritizeRightWall(), increased_strength);
+        return alignToWallAndWallDistance(RAS_Utils::sensors::shouldPrioritizeRightWall(sd), increased_strength);
     }
 
     /*
@@ -114,7 +114,7 @@ private:
     */
     double alignToWall(double increased_strength)
     {
-        return alignToWall(shouldPrioritizeRightWall(), increased_strength);
+        return alignToWall(RAS_Utils::sensors::shouldPrioritizeRightWall(sd), increased_strength);
     }
 
     /*
@@ -123,7 +123,7 @@ private:
     */
     double alignUsingWallDistance(double increased_strength)
     {
-        return alignToWallAndWallDistance(shouldPrioritizeRightWall(), increased_strength);
+        return alignToWallAndWallDistance(RAS_Utils::sensors::shouldPrioritizeRightWall(sd), increased_strength);
     }
 
 
@@ -153,7 +153,7 @@ private:
 
     double alignUsingWallDistance(bool wall_is_right, double increased_strength)
     {
-        if(!canFollowWall(wall_is_right)) {
+        if(!RAS_Utils::sensors::canFollowWall(sd, wall_is_right)) {
             std::string error_msg = "Trying to align using wall distance to: " + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall) while when we can't! Check code!";
             ROS_ERROR(error_msg.c_str());
         }
@@ -170,7 +170,7 @@ private:
     }
 
     double alignToWall(bool wall_is_right, double increased_strength) {
-        if(!canFollowAWall()) {
+        if(!RAS_Utils::sensors::canFollowAWall(sd)) {
             throw std::runtime_error( "Trying to follow wall:" + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall)! Check code!" );
         }
 
@@ -189,57 +189,6 @@ private:
     }
 
 
-    bool canFollowWall(double d_front, double d_back)
-    {
-        return d_front < MAX_DIST_SIDE_WALL && d_back < MAX_DIST_SIDE_WALL;
-    }
 
-    bool canFollowWall(bool right_wall)
-    {
-        if(right_wall)
-        {
-            return canFollowRightWall();
-        }else
-        {
-            return canFollowLeftWall();
-        }
-    }
-
-    bool canFollowAWall()
-    {
-        return canFollowLeftWall() || canFollowRightWall();
-    }
-
-    bool canFollowLeftWall()
-    {
-        return canFollowWall(sd.left_front_, sd.left_back_);
-    }
-
-    bool canFollowRightWall()
-    {
-        return canFollowWall(sd.right_front_, sd.right_back_);
-    }
-
-    double getDistanceToLeftWall()
-    {
-        return  0.5*(sd.left_back_ + sd.left_front_);
-    }
-
-    double getDistanceToRightWall()
-    {
-        return 0.5*(sd.right_back_ + sd.right_front_);
-    }
-
-    double getDistanceToClosestWall()
-    {
-        return fmin(getDistanceToLeftWall(), getDistanceToRightWall());
-    }
-
-    bool shouldPrioritizeRightWall()
-    {
-        if(!canFollowRightWall()) return false;
-        if(!canFollowLeftWall()) return true;
-        return getDistanceToRightWall() < getDistanceToLeftWall();
-    }
 };
 #endif // WALL_FOLLOWER_H
