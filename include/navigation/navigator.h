@@ -91,9 +91,6 @@ public:
 
 private:
 
-
-
-
     struct CommandInfo {
         std::string command;
         std::vector<int> args;
@@ -154,6 +151,7 @@ private:
     {
         CommandInfo command_info = command_stack_.top();
         command_stack_.pop();
+        ROS_INFO("Activated command: %s ", command_info.command);
         activateStackedCommand(command_info, v, w);
     }
 
@@ -178,7 +176,7 @@ private:
         if(currentlyTurning(v, w)) return true;
 
         if(currentlyAligning(v, w)) return true;
-
+        return false;
     }
 
 
