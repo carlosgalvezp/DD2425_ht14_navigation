@@ -12,6 +12,10 @@ class RobotAligner {
 public:
     RobotAligner() : currently_aligning_(false) {}
 
+    void activate() {
+        currently_aligning_ = true;
+    }
+
     void run(double &v, double &w, RAS_Utils::sensors::SensorDistances sd)
     {
         double sensor_diff;

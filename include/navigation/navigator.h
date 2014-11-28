@@ -151,7 +151,7 @@ private:
     {
         CommandInfo command_info = command_stack_.top();
         command_stack_.pop();
-        ROS_WARN("Activated command: %s ", command_info.command.c_str());
+        ROS_ERROR("Activated command: %s ", command_info.command.c_str());
         activateStackedCommand(command_info, v, w);
     }
 
@@ -164,6 +164,7 @@ private:
         if(command == COMMAND_STOP) robot_stopper_.activate(v, w);
         else if(command == COMMAND_EXPLORER_TURN) activateExplorerTurner(robot_angle_);
         else if(command == COMMAND_DANGER_CLOSE_BACKING) robot_backer_.activate(DANGEROUSLY_CLOSE_BACKUP_SPEED, DANGEROUSLY_CLOSE_BACKUP_DISTANCE);
+        else if(command == COMMAND_ALIGN) robot_aligner_.activate();
         else ROS_ERROR("!!! UNKNOWN COMMAND IN STACK !!!");
     }
 
