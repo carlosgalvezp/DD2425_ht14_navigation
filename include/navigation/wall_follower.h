@@ -8,6 +8,7 @@
 #include <ras_utils/basic_node.h>
 #include <navigation/robot_backer.h>
 #include <math.h>
+#include <ras_utils/ras_sensor_utils.h>
 
 #define MAX_DIST_FRONT_WALL     10      // [cm]
 #define MAX_DIST_SIDE_WALL     25       // [cm]
@@ -19,16 +20,6 @@
 #define DEFAULT_KI_W                    0.0     // 0.00001
 #define DEFAULT_LINEAR_SPEED            0.13
 #define DEFUALT_WALL_IS_RIGHT           true
-#define DEFAULT_STOPPING_ERROR_MARGIN   6.0
-#define DEFUALT_STOPPED_TURN_INCREASER  5.0
-#define DEFUALT_SLOW_START_INCREASER    0.1     // in percentage, 1 means full throttle from start
-
-#define DANGEROUSLY_CLOSE_LIMIT             7.5
-#define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   7
-#define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
-
-
-
 
 struct WF_PARAMS
 {
@@ -54,12 +45,9 @@ public:
         controller_wall_distance_ = Controller(params.kp_d_w, params.kd_d_w, params.ki_d_w);
     }
 
-    void run(double &v, double &w, double d_right_front, double d_left_front, double d_right_back, double d_left_back)
+    void run(double &v, double &w, RAS_Utils::sensors::SensorDistances sd)
     {
-        d_right_front_ = d_right_front;
-        d_left_front_ = d_left_front;
-        d_right_back_ = d_right_back;
-        d_left_back_ = d_left_back;
+        this->sd = sd;
 
         if(canFollowAWall()) {
             // Set wanted distance
@@ -91,7 +79,7 @@ public:
 
 private:
 
-    double d_right_front_, d_left_front_, d_right_back_, d_left_back_;
+    RAS_Utils::sensors::SensorDistances sd;
 
     bool wanted_distance_recently_set_;
 
@@ -151,14 +139,14 @@ private:
     void getDistanceFrontAndBack(bool wall_is_right, double &distance_front, double &distance_back, int &sign)
     {
         if(wall_is_right) {
-            distance_front = d_right_front_;
-            distance_back = d_right_back_;
+            distance_front = sd.right_front_;
+            distance_back = sd.right_back_;
             sign = 1;
         }
         else
         {
-            distance_front = d_left_front_;
-            distance_back = d_left_back_;
+            distance_front = sd.left_front_;
+            distance_back = sd.left_back_;
             sign = -1;
         }
     }
@@ -224,22 +212,22 @@ private:
 
     bool canFollowLeftWall()
     {
-        return canFollowWall(d_left_front_, d_left_back_);
+        return canFollowWall(sd.left_front_, sd.left_back_);
     }
 
     bool canFollowRightWall()
     {
-        return canFollowWall(d_right_front_, d_right_back_);
+        return canFollowWall(sd.right_front_, sd.right_back_);
     }
 
     double getDistanceToLeftWall()
     {
-        return  0.5*(d_left_back_ + d_left_front_);
+        return  0.5*(sd.left_back_ + sd.left_front_);
     }
 
     double getDistanceToRightWall()
     {
-        return 0.5*(d_right_back_ + d_right_front_);
+        return 0.5*(sd.right_back_ + sd.right_front_);
     }
 
     double getDistanceToClosestWall()

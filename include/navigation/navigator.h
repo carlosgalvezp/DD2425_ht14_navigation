@@ -4,6 +4,8 @@
 #include <ras_arduino_msgs/ADConverter.h>
 #include <geometry_msgs/Pose2D.h>
 
+#include <ras_utils/ras_utils.h>
+
 #include <navigation/robot_backer.h>
 #include <navigation/robot_turner.h>
 #include <navigation/robot_stopper.h>
@@ -18,14 +20,15 @@
 #define COMMAND_DANGER_CLOSE_BACKING    "danger_close_backing"
 #define COMMAND_ALIGN                   "aling"
 
+#define DANGEROUSLY_CLOSE_LIMIT             7.5
+#define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   7
+#define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
+
 class Navigator
 {
 public:
 
-    Navigator() : wantedDistanceRecentlySet_(false)
-    {
-
-    }
+    Navigator() : wantedDistanceRecentlySet_(false) {}
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params)
     {
@@ -48,12 +51,13 @@ public:
         {
             vision_detected_obj_in_front_ = (obj_msg != nullptr && obj_msg->data) ? true : false;
 
-            dist_front_large_range_ = RAS_Utils::longSensorToDistanceInCM(adc_msg->ch8);
-
-            d_right_front_ = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch4);
-            d_right_back_  = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch3);
-            d_left_front_  = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch1);
-            d_left_back_   = RAS_Utils::shortSensorToDistanceInCM(adc_msg->ch2);
+            sd = RAS_Utils::sensors::SensorDistances(
+               adc_msg->ch8,
+               adc_msg->ch7,
+               adc_msg->ch4,
+               adc_msg->ch3,
+               adc_msg->ch1,
+               adc_msg->ch2);
 
             /*
             ROS_INFO("Sensors %.3f, %.3f, %.3f, %.3f, %.3f ", dist_front_large_range_, d_right_front_, d_right_back_, d_left_front_, d_left_back_);
@@ -63,9 +67,6 @@ public:
             robot_y_pos_ = odo_msg->y;
             robot_angle_ = odo_msg->theta;
         }
-
-
-
 
         //  If something is currently running, let it work
         if(currentlyRunningCommand(v, w)) return;
@@ -91,14 +92,15 @@ public:
 private:
 
 
+
+
     struct CommandInfo {
         std::string command;
         std::vector<int> args;
         CommandInfo(std::string command, std::vector<int> args = std::vector<int>()) : command(command), args(args) {}
     };
 
-
-    double d_right_front_, d_left_front_, d_right_back_, d_left_back_, dist_front_large_range_;
+    RAS_Utils::sensors::SensorDistances sd;
     double robot_x_pos_, robot_y_pos_;
     double robot_angle_;
     bool vision_detected_obj_in_front_;
@@ -145,7 +147,7 @@ private:
         }
 
         // Nothing special in front of us, just run wall_follower
-        wall_follower_.run(v, w, d_right_front_, d_left_front_, d_right_back_, d_left_back_);
+        wall_follower_.run(v, w, sd);
     }
 
     void activateStackedCommand(double &v, double &w)
@@ -183,7 +185,7 @@ private:
     bool currentlyAligning(double &v, double &w)
     {
         if(robot_aligner_.isActive()) {
-            robot_aligner_.run(v, w, d_right_front_, d_left_front_, d_right_back_, d_left_back_);
+            robot_aligner_.run(v, w, sd);
             return true;
         }
         return false;
@@ -236,11 +238,11 @@ private:
     {
         // Decide whether to turn +-90º or 180º
         double turn_angle;
-        if(d_left_front_ > MAX_DIST_SIDE_WALL && d_left_back_ > MAX_DIST_SIDE_WALL)
+        if(sd.left_front_ > MAX_DIST_SIDE_WALL && sd.left_back_ > MAX_DIST_SIDE_WALL)
         {
             turn_angle = M_PI/2.0;
         }
-        else if(d_right_front_ > MAX_DIST_SIDE_WALL && d_right_back_ > MAX_DIST_SIDE_WALL)
+        else if(sd.right_front_ > MAX_DIST_SIDE_WALL && sd.right_back_ > MAX_DIST_SIDE_WALL)
         {
             turn_angle = -M_PI/2.0;
         }
@@ -252,12 +254,12 @@ private:
 
     bool isWallDangerouslyCloseToWheels()
     {
-        return d_right_front_ < DANGEROUSLY_CLOSE_LIMIT || d_left_front_ < DANGEROUSLY_CLOSE_LIMIT;
+        return sd.right_front_ < DANGEROUSLY_CLOSE_LIMIT || sd.left_front_ < DANGEROUSLY_CLOSE_LIMIT;
     }
 
 
     bool isWallCloseInFront( ) {
-        return dist_front_large_range_ < MAX_DIST_FRONT_WALL || vision_detected_obj_in_front_;
+        return sd.front_ < MAX_DIST_FRONT_WALL || vision_detected_obj_in_front_;
     }
 };
 
