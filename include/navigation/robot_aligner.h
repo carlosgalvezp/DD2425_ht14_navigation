@@ -32,7 +32,7 @@ public:
             ROS_INFO("right sensor diff: %f", sensor_diff);
         } else
         {
-            ROS_WARN("No wall to align, abort");
+            ROS_WARN("No wall to align to");
             // No wall we can align to, abort
             w = 0;
             v = 0;
