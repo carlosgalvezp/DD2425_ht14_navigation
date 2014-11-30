@@ -3,7 +3,7 @@
 GlobalPathPlanning::GlobalPathPlanning()
 {
     // ** Read map graph from file
-    Graph_Utils::readGraph(RAS_Names::GRAPH_MAP_PATH, this->map_graph_);
+    Graph_Utils::readGraph(RAS_Names::TOPOLOGICAL_MAP_PATH, this->map_graph_);
 
     // ** Create BFS planner
     bfs_planner_ = BFS_Planner(this->map_graph_);
