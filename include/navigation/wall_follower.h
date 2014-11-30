@@ -155,7 +155,7 @@ private:
     {
         if(!RAS_Utils::sensors::canFollowWall(sd, wall_is_right)) {
             std::string error_msg = "Trying to align using wall distance to: " + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall) while when we can't! Check code!";
-            ROS_ERROR(error_msg.c_str());
+            ROS_ERROR("%s",error_msg.c_str());
         }
 
         int sign;

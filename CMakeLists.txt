@@ -160,7 +160,9 @@ include_directories(
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
-
+# Eigen
+find_package(Eigen REQUIRED)
+include_directories(${EIGEN_INCLUDE_DIRS})
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
