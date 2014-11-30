@@ -5,6 +5,7 @@
 #include "geometry_msgs/Pose2D.h"
 #include <geometry_msgs/Twist.h>
 #include "ras_utils/controller.h"
+#include "ras_utils/ras_utils.h"
 
 #define MAX_ANGLE_DIFF 0.1 // rad
 
@@ -37,6 +38,7 @@ public:
         // compute angular velocity
         controller_w.setData(target_angle, current_angle);
         double diff = target_angle - current_angle;
+        diff = RAS_Utils::normalize_angle( diff );
     //    w = controller_w.computeControl();
         w = 1.0 * RAS_Utils::sign(diff);
         v = 0;
