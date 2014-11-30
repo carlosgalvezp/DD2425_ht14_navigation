@@ -11,6 +11,9 @@
 #include <navigation/navigator.h>
 #include <nav_msgs/OccupancyGrid.h>
 
+#include <ras_utils/graph/graph.h>
+#include <ras_utils/graph/dfs_planner.h>
+
 #define QUEUE_SIZE 1
 #define PUBLISH_RATE 50
 
