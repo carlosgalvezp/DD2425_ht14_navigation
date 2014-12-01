@@ -9,7 +9,7 @@
 
 #include <Eigen/Core>
 
-#include <queue>
+#include <vector>
 class GlobalPathPlanning
 {
 public:

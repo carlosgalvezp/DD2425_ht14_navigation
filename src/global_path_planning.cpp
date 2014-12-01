@@ -48,10 +48,9 @@ void GlobalPathPlanning::addSubpath(const std::vector<Node> &subpath, bool last_
     std::size_t n_elems = subpath.size();
     std::size_t end = last_segment ? n_elems : n_elems -1;
 
-    std::vector<Node> subpath_tmp(subpath);
     for(std::size_t i = 0; i < end; ++i)
     {
-        out_path.push_back(subpath_tmp[i]);
+        out_path.push_back(subpath[i]);
     }
 }
 
