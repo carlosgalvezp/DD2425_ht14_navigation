@@ -2,8 +2,8 @@
 
 GlobalPathPlanning::GlobalPathPlanning()
 {
-    // ** Read map graph from file
-    Graph_Utils::readGraph(RAS_Names::TOPOLOGICAL_MAP_PATH, this->map_graph_);
+    // ** Read object graph from file
+//    Graph_Utils::readGraph(RAS_Names::TOPOLOGICAL_MAP_PATH, this->map_graph_);
 
     // ** Create DFS planner
     dfs_planner_ = DFS_Planner(this->map_graph_);
