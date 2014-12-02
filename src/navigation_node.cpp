@@ -11,6 +11,8 @@
 #include <navigation/navigator.h>
 #include <nav_msgs/OccupancyGrid.h>
 
+#include <ras_utils/graph/graph.h>
+#include <ras_utils/graph/dfs_planner.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 

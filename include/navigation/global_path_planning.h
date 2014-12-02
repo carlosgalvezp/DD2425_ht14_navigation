@@ -34,6 +34,7 @@ private:
 
     void getConnectedObjectsPath(const std::vector<Node> &objects_path,
                                        std::vector<Node> &out_path);
+
     void addSubpath(const std::vector<Node> &subpath, bool last_segment, std::vector<Node> &out_path);
 };
 
