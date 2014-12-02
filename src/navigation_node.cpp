@@ -58,6 +58,7 @@ private:
 
     WF_PARAMS wf_params;
     RT_PARAMS rt_params;
+    RAF_PARAMS raf_params;
 
     int mode_;
     ras_arduino_msgs::ADConverter::ConstPtr adc_data_;
@@ -100,6 +101,8 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
 
 void Navigation::addParams()
 {
+
+
     add_param("wf/debug_print", wf_params.debug_print, DEFAULT_DEBUG_PRINT);
     add_param("wf/wanted_distance", wf_params.wanted_distance, DEFAULT_WANTED_DISTANCE);
     add_param("wf/W/KP", wf_params.kp_w, DEFAULT_KP_W);
@@ -114,7 +117,12 @@ void Navigation::addParams()
     add_param("Robot_turning/W/KD", rt_params.kd_w, 0.3);
     add_param("Robot_turning/W/KI", rt_params.ki_w, 0.003);
 
-    navigator_.setParams(wf_params, rt_params);
+    add_param("Robot_af/W/KP", raf_params.kp_w, 2.0);
+    add_param("Robot_af/W/KD", raf_params.kd_w, 0.5);
+    add_param("Robot_af/W/KI", raf_params.ki_w, 0.003);
+    add_param("wf/linear_speed", raf_params.wanted_v, DEFAULT_LINEAR_SPEED);
+
+    navigator_.setParams(wf_params, rt_params, raf_params);
 }
 
 void Navigation::run()
@@ -143,6 +151,8 @@ void Navigation::run()
                 w = 0;
                 break;
         }
+
+
         /*
             // TESTING THE PATH
         if(map_data_ != nullptr) {
@@ -156,6 +166,8 @@ void Navigation::run()
 
         // ** Publish
         geometry_msgs::Twist msg;
+
+        displayPathRviz(navigator_.getPath());
 
         msg.linear.x = v;
         msg.linear.y = 0.0;
