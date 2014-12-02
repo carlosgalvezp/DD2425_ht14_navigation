@@ -11,6 +11,7 @@
 #include <navigation/navigator.h>
 #include <nav_msgs/OccupancyGrid.h>
 
+#include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
 #define QUEUE_SIZE 1
@@ -82,7 +83,7 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
 
     // Publisher
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
-    path_pub_  = n.advertise<visualization_msgs::Marker>(TOPIC_MARKERS, 1);
+    path_pub_  = n.advertise<visualization_msgs::MarkerArray>(TOPIC_MARKERS, 1);
 
     // Subscriber
     adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
@@ -189,7 +190,10 @@ bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::
 
 void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
 {
-    visualization_msgs::Marker msg;
+    visualization_msgs::MarkerArray msg_array;
+    msg_array.markers.resize(1);
+
+    visualization_msgs::Marker &msg = msg_array.markers[0];
     msg.points.resize(path.size());
 
     msg.header.frame_id = COORD_FRAME_WORLD;
@@ -225,5 +229,5 @@ void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
         msg.points[i] = path[i];
     }
 
-    path_pub_.publish(msg);
+    path_pub_.publish(msg_array);
 }
