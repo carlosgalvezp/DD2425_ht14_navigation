@@ -3,8 +3,10 @@
 
 #include <ras_arduino_msgs/ADConverter.h>
 #include <geometry_msgs/Pose2D.h>
+#include <nav_msgs/OccupancyGrid.h>
 
 #include <ras_utils/ras_utils.h>
+#include <ras_utils/occupancy_map_utils.h>
 
 #include <navigation/robot_backer.h>
 #include <navigation/robot_turner.h>
@@ -39,6 +41,7 @@ public:
     void computeCommands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
                                          const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg,
                                          const std_msgs::Bool::ConstPtr &obj_msg,
+                                         const nav_msgs::OccupancyGrid::ConstPtr & map_msg,
                                          double &v, double &w)
     {
         if (adc_msg == nullptr || odo_msg == nullptr)
@@ -46,7 +49,6 @@ public:
             ROS_ERROR("adc_msg or odo_msg are null!");
             return;
         }
-
         //Save all input
         {
             vision_detected_obj_in_front_ = (obj_msg != nullptr && obj_msg->data) ? true : false;
@@ -67,6 +69,8 @@ public:
             robot_y_pos_ = odo_msg->y;
             robot_angle_ = odo_msg->theta;
         }
+
+
 
         //  If something is currently running, let it work
         if(currentlyRunningCommand(v, w)) return;

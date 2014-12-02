@@ -123,12 +123,13 @@ void Navigation::run()
     while(ros::ok())
     {
         double v, w;
+
         // ** Compute velocity commands
         switch(mode_)
         {
             case RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW:
                 ROS_INFO("[Navigation] Wall following");
-                navigator_.computeCommands(odo_data_, adc_data_, obj_data_, v, w);
+                navigator_.computeCommands(odo_data_, adc_data_, obj_data_, map_data_, v, w);
                 break;
 
             case RAS_Names::Navigation_Modes::NAVIGATION_GO_OBJECT:
@@ -142,6 +143,16 @@ void Navigation::run()
                 w = 0;
                 break;
         }
+        /*
+            // TESTING THE PATH
+        if(map_data_ != nullptr) {
+            std::vector<geometry_msgs::Point> results = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(*map_data_, odo_data_->x, odo_data_->y);
+
+            displayPathRviz(results);
+            ROS_INFO("%i", results.size());
+        }
+        */
+
 
         // ** Publish
         geometry_msgs::Twist msg;
@@ -155,6 +166,7 @@ void Navigation::run()
         msg.angular.z = w;
 
         twist_pub_.publish(msg);
+
         // ** Sleep
         ros::spinOnce();
         loop_rate.sleep();
@@ -216,9 +228,10 @@ void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
 //    marker_arrow.pose.orientation.z = q.z();
 //    marker_arrow.pose.orientation.w = q.w();
 
-    msg.scale.x = 0.1;
-    msg.scale.y = 0.1;
-    msg.scale.z = 0.1;
+    msg.scale.x = 0.05;
+    msg.scale.y = 0.05;
+    msg.scale.z = 0.0;
+
 
     msg.color.a = 1.0;
     msg.color.r = 1.0;
@@ -228,6 +241,8 @@ void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
 
     for(std::size_t i = 0; i < path.size(); ++i)
     {
+
+        ROS_INFO("%f.3  | %f.3", path[i].x, path[i].y);
         msg.points[i] = path[i];
     }
 
