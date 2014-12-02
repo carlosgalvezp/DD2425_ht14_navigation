@@ -11,6 +11,8 @@
 #include <navigation/navigator.h>
 #include <nav_msgs/OccupancyGrid.h>
 
+#include <visualization_msgs/Marker.h>
+
 #define QUEUE_SIZE 1
 #define PUBLISH_RATE 50
 
@@ -24,6 +26,8 @@ public:
 private:
     // ** Publishers and subscribers
     ros::Publisher twist_pub_;
+    ros::Publisher path_pub_;
+
     ros::Subscriber adc_sub_;
     ros::Subscriber odo_sub_;
     ros::Subscriber obj_sub_;
@@ -42,6 +46,8 @@ private:
     bool srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp);
 
     void addParams();
+
+    void displayPathRviz(const std::vector<geometry_msgs::Point> &path);
 
     Controller controller_w;
     Navigator navigator_;
@@ -76,6 +82,8 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
 
     // Publisher
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
+    path_pub_  = n.advertise<visualization_msgs::Marker>(TOPIC_MARKERS, 1);
+
     // Subscriber
     adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
     odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallback, this);
@@ -177,4 +185,45 @@ bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::
     mode_ = req.command;
     resp.result = 1;
     return true;
+}
+
+void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
+{
+    visualization_msgs::Marker msg;
+    msg.points.resize(path.size());
+
+    msg.header.frame_id = COORD_FRAME_WORLD;
+    msg.header.stamp = ros::Time();
+    msg.ns = "Path";
+    msg.id = 0;
+    msg.action = visualization_msgs::Marker::ADD;
+
+    // This is not required for LINE
+//    tf::Quaternion q;
+//    q.setRPY(0,0,theta);
+//    marker_arrow.pose.position.x = x;
+//    marker_arrow.pose.position.y = y;
+//    marker_arrow.pose.position.z = 0.05;
+
+//    marker_arrow.pose.orientation.x = q.x();
+//    marker_arrow.pose.orientation.y = q.y();
+//    marker_arrow.pose.orientation.z = q.z();
+//    marker_arrow.pose.orientation.w = q.w();
+
+    msg.scale.x = 0.1;
+    msg.scale.y = 0.1;
+    msg.scale.z = 0.1;
+
+    msg.color.a = 1.0;
+    msg.color.r = 1.0;
+    msg.color.g = 0.0;
+    msg.color.b = 0.0;
+    msg.type = visualization_msgs::Marker::LINE_STRIP;
+
+    for(std::size_t i = 0; i < path.size(); ++i)
+    {
+        msg.points[i] = path[i];
+    }
+
+    path_pub_.publish(msg);
 }
