@@ -12,7 +12,7 @@ GlobalPathPlanning::GlobalPathPlanning()
     this->objectGraphFromMap(this->map_graph_, this->objects_graph_);
 }
 
-void GlobalPathPlanning::getGlobalPath(std::queue<Node> &path)
+void GlobalPathPlanning::getGlobalPath(std::vector<Node> &path)
 {
     // ** Run genetic algorithm to solve TSP for object nodes
     GeneticAlgorithm object_path_planner(this->objects_graph_);
@@ -24,7 +24,7 @@ void GlobalPathPlanning::getGlobalPath(std::queue<Node> &path)
 }
 
 void GlobalPathPlanning::getConnectedObjectsPath(const std::vector<Node> &objects_path,
-                                                       std::queue<Node> &out_path)
+                                                       std::vector<Node> &out_path)
 {
     // ** Connect each node with the following one using intermediate map (non-object) nodes
     for(std::size_t i = 0; i < objects_path.size() - 1; ++i)
@@ -41,17 +41,16 @@ void GlobalPathPlanning::getConnectedObjectsPath(const std::vector<Node> &object
 }
 
 void GlobalPathPlanning::addSubpath(const std::vector<Node> &subpath, bool last_segment,
-                                          std::queue<Node> &out_path)
+                                          std::vector<Node> &out_path)
 {
     // Don't add the last element since it will be added in the next segment (unless
     // it's the last one)
     std::size_t n_elems = subpath.size();
     std::size_t end = last_segment ? n_elems : n_elems -1;
 
-    std::vector<Node> subpath_tmp(subpath);
     for(std::size_t i = 0; i < end; ++i)
     {
-        out_path.push(subpath_tmp[i]);
+        out_path.push_back(subpath[i]);
     }
 }
 

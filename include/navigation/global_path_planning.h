@@ -9,7 +9,7 @@
 
 #include <Eigen/Core>
 
-#include <queue>
+#include <vector>
 class GlobalPathPlanning
 {
 public:
@@ -23,7 +23,7 @@ public:
      *        go from start (0,0), fetch all the objects, and go back as fast as possible
      * @return
      */
-    void getGlobalPath(std::queue<Node> &path);
+    void getGlobalPath(std::vector<Node> &path);
 
 private:
     Graph map_graph_;         // Topological map of the whole maze, including objects
@@ -33,8 +33,9 @@ private:
     void objectGraphFromMap(const Graph &map_graph, Graph &objects_graph);
 
     void getConnectedObjectsPath(const std::vector<Node> &objects_path,
-                                       std::queue<Node> &out_path);
-    void addSubpath(const std::vector<Node> &subpath, bool last_segment, std::queue<Node> &out_path);
+                                       std::vector<Node> &out_path);
+
+    void addSubpath(const std::vector<Node> &subpath, bool last_segment, std::vector<Node> &out_path);
 };
 
 #endif // GLOBAL_PATH_PLANNING_H
