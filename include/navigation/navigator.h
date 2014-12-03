@@ -49,9 +49,9 @@ public:
                                          const nav_msgs::OccupancyGrid::ConstPtr & map_msg,
                                          double &v, double &w)
     {
-        if (adc_msg == nullptr || odo_msg == nullptr)
+        if (adc_msg == nullptr || odo_msg == nullptr || map_msg == nullptr)
         {
-            ROS_ERROR("adc_msg or odo_msg are null!");
+            ROS_ERROR("adc_msg or odo_msg or map_msg are null!");
             return;
         }
         //Save all input
@@ -157,7 +157,7 @@ private:
 
 
         if(isWallCloseInFront() && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/4 )
-        {
+        {f
             // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
             wantedDistanceRecentlySet_ = false;
             // Stop the robot! And afterwards, start the rotating!
