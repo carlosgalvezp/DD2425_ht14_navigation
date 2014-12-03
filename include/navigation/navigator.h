@@ -157,7 +157,7 @@ private:
         double wanted_angle = getWantedAngle();
 
 
-        if(isWallCloseInFront()) //&& fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/4 )
+        if(isWallCloseInFront() && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/4 )
         {
             // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
             wantedDistanceRecentlySet_ = false;
