@@ -43,7 +43,7 @@ public:
         w = controller_w.computeControl();
 
 
-        double v_retract =  fmin((wanted_v / (M_PI / 3.0)) * fabs(diff), wanted_v);
+        double v_retract =  fmin((wanted_v / (M_PI / 7.0)) * fabs(diff), wanted_v);
 
         v = wanted_v - v_retract;
     }
