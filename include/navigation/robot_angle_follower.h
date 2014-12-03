@@ -35,12 +35,12 @@ public:
     void run(double &v, double &w, double current_angle, double wanted_angle )
     {
         // compute angular velocity
-        current_angle = RAS_Utils::normalize_angle( current_angle );
-        wanted_angle = RAS_Utils::normalize_angle( wanted_angle );
         double diff = wanted_angle - current_angle;
         diff = RAS_Utils::normalize_angle( diff );
         controller_w.setData(0, -diff);
         w = controller_w.computeControl();
+
+        ROS_ERROR("Diff: %.3f, Currrent_angle: %.3f, wanted_angle: %.3f", diff, current_angle, wanted_angle);
 
 
         double v_retract =  fmin((wanted_v / (M_PI / 7.0)) * fabs(diff), wanted_v);
