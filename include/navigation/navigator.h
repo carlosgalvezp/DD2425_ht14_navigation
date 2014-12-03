@@ -167,6 +167,7 @@ private:
 
 
         robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
+        ROS_WARN("V: %f.03  W: %f.03, robot_angle: %f.03, wanted_angle: %f.03", v, w, robot_angle_, wanted_angle);
 
         //wall_follower_.run(v, w, sd);
     }
