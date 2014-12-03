@@ -37,9 +37,9 @@ public:
         // compute angular velocity
         current_angle = RAS_Utils::normalize_angle( current_angle );
         wanted_angle = RAS_Utils::normalize_angle( wanted_angle );
-        controller_w.setData(wanted_angle, current_angle);
         double diff = wanted_angle - current_angle;
         diff = RAS_Utils::normalize_angle( diff );
+        controller_w.setData(0, diff);
         w = controller_w.computeControl();
 
 
