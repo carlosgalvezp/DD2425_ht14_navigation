@@ -154,7 +154,7 @@ private:
 
         calculateUnknownPath(occ_grid);
 
-        double wanted_angle =  0; //getWantedAngle();
+        double wanted_angle = getWantedAngle();
 
         /*
         if(isWallCloseInFront()) //&& fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/4 )
@@ -186,7 +186,7 @@ private:
 
         geometry_msgs::Point to_point = path_[fmin(PATH_GRID_POINT_TO_FOLLOW, path_.size() - 1)];
 
-        return atan2(robot_y_pos_ - to_point.y, robot_x_pos_ - to_point.x);
+        return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
     }
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
