@@ -253,8 +253,6 @@ void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
 
     for(std::size_t i = 0; i < path.size(); ++i)
     {
-
-        ROS_INFO("%f.3  | %f.3", path[i].x, path[i].y);
         msg.points[i] = path[i];
     }
 
