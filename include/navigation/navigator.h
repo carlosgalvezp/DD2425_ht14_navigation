@@ -168,7 +168,7 @@ private:
         */
 
 
-        //robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
+        robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
         std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
         std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
         RAS_Utils::print(strings, values);
