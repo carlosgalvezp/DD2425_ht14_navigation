@@ -18,6 +18,8 @@
 #include <stack>
 #include <math.h>
 
+#include <cstdlib>
+
 #define COMMAND_STOP                    "stop"
 #define COMMAND_EXPLORER_TURN           "explorer_turn"
 #define COMMAND_BACKUP                  "backup"
@@ -34,7 +36,7 @@ class Navigator
 {
 public:
 
-    Navigator() : wantedDistanceRecentlySet_(false) {}
+    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false) {}
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params)
     {
@@ -52,6 +54,12 @@ public:
         if (adc_msg == nullptr || odo_msg == nullptr || map_msg == nullptr)
         {
             ROS_ERROR("adc_msg or odo_msg or map_msg are null!");
+            return;
+        }
+
+        if(finished_) {
+            v = 0;
+            w = 0;
             return;
         }
         //Save all input
@@ -127,6 +135,9 @@ private:
 
     bool wantedDistanceRecentlySet_;
 
+    bool going_home_;
+    bool finished_;
+
 
     void exploreRandomly(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
@@ -152,7 +163,25 @@ private:
         }
 
 
-        calculateUnknownPath(occ_grid);
+        if(!going_home_){
+            calculateUnknownPath(occ_grid);
+            if(path_.size() == 0){
+                going_home_ = true;
+                system("espeak 'The bomb has been planted");
+
+            }
+        }
+        if(going_home_) {
+            calculateHomePath(occ_grid);
+        }
+
+        if(going_home_ && path_.size() < 5)
+        {
+            system("espeak 'Terrorists win");
+            finished_ = true;
+        }
+
+
 
         double wanted_angle = getWantedAngle();
 
@@ -187,6 +216,11 @@ private:
         geometry_msgs::Point to_point = path_[fmin(PATH_GRID_POINT_TO_FOLLOW, path_.size() - 1)];
 
         return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
+    }
+
+    void calculateHomePath(const nav_msgs::OccupancyGrid & occ_grid)
+    {
+        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, 0, 0);
     }
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
