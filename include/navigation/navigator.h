@@ -138,7 +138,7 @@ private:
                 command_stack_.push(CommandInfo(COMMAND_STOP));
         };
 
-
+        /*
         if(isWallDangerouslyCloseToWheels())
         {
             // ALWAYS check this first, this is our most important check for not hitting a wall
@@ -150,12 +150,13 @@ private:
             command_stack_.push(CommandInfo(COMMAND_STOP));
             return;
         }
+        */
 
         calculateUnknownPath(occ_grid);
 
-        double wanted_angle = getWantedAngle();
+        double wanted_angle =  0; //getWantedAngle();
 
-
+        /*
         if(isWallCloseInFront()) //&& fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/4 )
         {
             // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
@@ -164,12 +165,15 @@ private:
             turnCommandCombo();
             return;
         }
+        */
 
 
         //robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
-        //ROS_WARN("V: %f.03  W: %f.03, robot_angle: %f.03, wanted_angle: %f.03", v, w, robot_angle_, wanted_angle);
+        std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
+        std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
+        RAS_Utils::print(strings, values);
 
-        wall_follower_.run(v, w, sd);
+        //wall_follower_.run(v, w, sd);
     }
 
     double getWantedAngle()
