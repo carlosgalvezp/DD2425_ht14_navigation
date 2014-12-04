@@ -107,7 +107,7 @@ public:
 
     void setRobotFrontPos()
     {
-        double distance_ahead = 9.0;
+        double distance_ahead = 0.09;
         robot_front_x_pos_ = robot_x_pos_ + cos(robot_angle_) * distance_ahead;
         robot_front_y_pos_ = robot_y_pos_ + sin(robot_angle_) * distance_ahead;
     }
