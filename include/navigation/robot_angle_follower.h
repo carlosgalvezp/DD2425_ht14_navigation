@@ -37,6 +37,15 @@ public:
         // compute angular velocity
         double diff = wanted_angle - current_angle;
         diff = RAS_Utils::normalize_angle( diff );
+
+        if(diff > M_PI_4)
+        {
+            diff = M_PI_4;
+        }
+        if(diff < M_PI_4)
+        {
+            diff = -M_PI_4;
+        }
         controller_w.setData(0, -diff);
         w = controller_w.computeControl();
 
