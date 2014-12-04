@@ -26,8 +26,8 @@
 #define COMMAND_DANGER_CLOSE_BACKING    "danger_close_backing"
 #define COMMAND_ALIGN                   "aling"
 
-#define DANGEROUSLY_CLOSE_LIMIT             7.5
-#define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   7
+#define DANGEROUSLY_CLOSE_LIMIT             6.0
+#define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   5
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
 #define PATH_GRID_POINT_TO_FOLLOW 10 // follow the 10'nth points (means roughly look maximum 10 cm ahead)
@@ -158,17 +158,6 @@ private:
         };
 
 
-        if(isWallDangerouslyCloseToWheels())
-        {
-            // ALWAYS check this first, this is our most important check for not hitting a wall
-            wantedDistanceRecentlySet_ = false;
-            // Stop the robot. Then back up some distance
-            ROS_ERROR("!!! Dangerously close to wheels !!!");
-            turnCommandCombo();
-            command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
-            command_stack_.push(CommandInfo(COMMAND_STOP));
-            return;
-        }
 
 
 
@@ -195,7 +184,7 @@ private:
         double wanted_angle = getWantedAngle();
 
 
-        if(isWallCloseInFront() && path_.size() <= 17)//fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7 )
+        if(isWallCloseInFront() && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
         {
             // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
             wantedDistanceRecentlySet_ = false;
@@ -203,6 +192,19 @@ private:
             turnCommandCombo();
             return;
         }
+
+        if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+        {
+            // ALWAYS check this first, this is our most important check for not hitting a wall
+            wantedDistanceRecentlySet_ = false;
+            // Stop the robot. Then back up some distance
+            ROS_ERROR("!!! Dangerously close to wheels !!!");
+            turnCommandCombo();
+            command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
+            command_stack_.push(CommandInfo(COMMAND_STOP));
+            return;
+        }
+
 
 
 
