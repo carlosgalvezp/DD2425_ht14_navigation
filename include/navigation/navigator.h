@@ -184,15 +184,6 @@ private:
         double wanted_angle = getWantedAngle();
 
 
-        if(isWallCloseInFront() && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
-        {
-            // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
-            wantedDistanceRecentlySet_ = false;
-            // Stop the robot! And afterwards, start the rotating!
-            turnCommandCombo();
-            return;
-        }
-
         if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
         {
             // ALWAYS check this first, this is our most important check for not hitting a wall
@@ -206,7 +197,14 @@ private:
         }
 
 
-
+        if(isWallCloseInFront() && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+        {
+            // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
+            wantedDistanceRecentlySet_ = false;
+            // Stop the robot! And afterwards, start the rotating!
+            turnCommandCombo();
+            return;
+        }
 
         robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
         std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
