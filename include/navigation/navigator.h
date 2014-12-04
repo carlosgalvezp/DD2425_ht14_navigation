@@ -167,7 +167,7 @@ private:
             calculateUnknownPath(occ_grid);
             if(path_.size() == 0){
                 going_home_ = true;
-                system("espeak 'The bomb has been planted");
+//                system("espeak 'The bomb has been planted'");
 
             }
         }
@@ -177,7 +177,7 @@ private:
 
         if(going_home_ && path_.size() < 5)
         {
-            system("espeak 'Terrorists win");
+//            system("espeak 'Terrorists win'");
             finished_ = true;
         }
 
@@ -198,9 +198,9 @@ private:
 
 
         robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
-        std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
-        std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
-        RAS_Utils::print(strings, values);
+//        std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
+//        std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
+//        RAS_Utils::print(strings, values);
 
         //wall_follower_.run(v, w, sd);
     }
@@ -232,7 +232,7 @@ private:
     {
         CommandInfo command_info = command_stack_.top();
         command_stack_.pop();
-        ROS_ERROR("Activated command: %s ", command_info.command.c_str());
+//        ROS_ERROR("Activated command: %s ", command_info.command.c_str());
         activateStackedCommand(command_info, v, w);
     }
 
@@ -280,7 +280,7 @@ private:
         if (robot_backer_.isActive())
         {
             // We are currently backing up some distance, let it do its shit!
-            ROS_WARN("Backing");
+//            ROS_WARN("Backing");
             if(!robot_backer_.isStartPosSet())
             {
                 // Needed in order to make sure that the robot is truly stopped when taking the first readings.
@@ -298,7 +298,7 @@ private:
     {
         if(robot_turner_.isRotating()){
             // The turner is currently rotating
-            ROS_WARN("Turning");
+//            ROS_WARN("Turning");
             robot_turner_.run(robot_angle_, v, w);
             return true;
         }
@@ -307,7 +307,7 @@ private:
 
     void activateExplorerTurner(double angle_right_now)
     {
-        ROS_INFO("!!! Initiate turning !!!");
+//        ROS_INFO("!!! Initiate turning !!!");
         double delta_angle = computeExplorerTurningAngle();
         double base_angle = angle_right_now;
         robot_turner_.activate(base_angle, delta_angle);

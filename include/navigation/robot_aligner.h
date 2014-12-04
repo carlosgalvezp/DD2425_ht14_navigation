@@ -24,15 +24,15 @@ public:
         {
             //we can align to the left wall!
             sensor_diff = sd.left_front_ - sd.left_back_;
-            ROS_INFO("left sensor diff: %f", sensor_diff);
+//            ROS_INFO("left sensor diff: %f", sensor_diff);
         } else if(RAS_Utils::sensors::canFollowRightWall(sd))
         {
             //we can align to the right wall!
             sensor_diff = sd.right_back_ - sd.right_front_;
-            ROS_INFO("right sensor diff: %f", sensor_diff);
+//            ROS_INFO("right sensor diff: %f", sensor_diff);
         } else
         {
-            ROS_WARN("No wall to align to");
+//            ROS_WARN("No wall to align to");
             // No wall we can align to, abort
             w = 0;
             v = 0;
@@ -42,7 +42,7 @@ public:
 
         if( fabs(sensor_diff) < MAX_SENSOR_DIFF )
         {
-            ROS_WARN("Good enough aligning. sensor_diff: %f  MAX: %f", sensor_diff, MAX_SENSOR_DIFF);
+//            ROS_WARN("Good enough aligning. sensor_diff: %f  MAX: %f", sensor_diff, MAX_SENSOR_DIFF);
             currently_aligning_ = false;
             w = 0;
             v = 0;

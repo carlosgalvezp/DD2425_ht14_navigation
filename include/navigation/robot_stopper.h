@@ -25,7 +25,7 @@ public:
     void sleepIfStopped()
     {
         if(stopped_) {
-            ROS_WARN("Sleeping");
+//            ROS_WARN("Sleeping");
             ros::Duration(stop_time_).sleep();
             stopped_ = false;
         }

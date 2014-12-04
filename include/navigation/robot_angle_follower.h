@@ -40,7 +40,7 @@ public:
         controller_w.setData(0, -diff);
         w = controller_w.computeControl();
 
-        ROS_ERROR("Diff: %.3f, Currrent_angle: %.3f, wanted_angle: %.3f", diff, current_angle, wanted_angle);
+//        ROS_ERROR("Diff: %.3f, Currrent_angle: %.3f, wanted_angle: %.3f", diff, current_angle, wanted_angle);
 
 
         double v_retract =  fmin((wanted_v / (M_PI / 7.0)) * fabs(diff), wanted_v);
