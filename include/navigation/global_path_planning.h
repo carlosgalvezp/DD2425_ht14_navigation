@@ -13,9 +13,7 @@
 class GlobalPathPlanning
 {
 public:
-    /**
-     * @brief Default constructor. Reads the topological map from file
-     */
+
     GlobalPathPlanning();
 
     /**
