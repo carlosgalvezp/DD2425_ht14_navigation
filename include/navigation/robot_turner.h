@@ -47,7 +47,7 @@ public:
         {
             rotating_ = false;
         }
-        ROS_INFO("Current_angle:%.3f  Target:%.3f  Diff:%.3f", current_angle, target_angle, diff);
+//        ROS_INFO("Current_angle:%.3f  Target:%.3f  Diff:%.3f", current_angle, target_angle, diff);
     }
 
     bool isRotating() {

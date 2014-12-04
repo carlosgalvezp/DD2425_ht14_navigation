@@ -53,7 +53,7 @@ public:
             // Set wanted distance
             if(!wanted_distance_recently_set_)
             {
-                ROS_ERROR("Setting wanted distance");
+//                ROS_ERROR("Setting wanted distance");
                 wanted_distance_ = RAS_Utils::sensors::getDistanceToClosestWall(sd);
                 wanted_distance_recently_set_ = true;
             }
@@ -66,7 +66,7 @@ public:
 
 
         // ** Ask boss to decide what to do
-        ROS_WARN("Wall follower have no wall to follow. Trying to go straight");
+//        ROS_WARN("Wall follower have no wall to follow. Trying to go straight");
         v = wanted_v_;
         w = 0.0;
         wanted_distance_recently_set_ = false;
@@ -132,7 +132,7 @@ private:
         double w_align_to_wall_distance = alignUsingWallDistance(wall_is_right, increased_strength);
         double w_align_to_wall = alignToWall(wall_is_right, increased_strength);
 
-        ROS_WARN("%f: %f", w_align_to_wall_distance, w_align_to_wall);
+//        ROS_WARN("%f: %f", w_align_to_wall_distance, w_align_to_wall);
         return w_align_to_wall_distance + w_align_to_wall;
     }
 
@@ -155,7 +155,7 @@ private:
     {
         if(!RAS_Utils::sensors::canFollowWall(sd, wall_is_right)) {
             std::string error_msg = "Trying to align using wall distance to: " + boost::lexical_cast<std::string>(wall_is_right) + "(true = right wall) while when we can't! Check code!";
-            ROS_ERROR("%s",error_msg.c_str());
+//            ROS_ERROR("%s",error_msg.c_str());
         }
 
         int sign;

@@ -117,9 +117,9 @@ void Navigation::addParams()
     add_param("Robot_turning/W/KD", rt_params.kd_w, 0.3);
     add_param("Robot_turning/W/KI", rt_params.ki_w, 0.003);
 
-    add_param("Robot_af/W/KP", raf_params.kp_w, 2.0);
-    add_param("Robot_af/W/KD", raf_params.kd_w, 0.5);
-    add_param("Robot_af/W/KI", raf_params.ki_w, 0.003);
+    add_param("Robot_angle_follower/W/KP", raf_params.kp_w, 0.3);
+    add_param("Robot_angle_follower/W/KD", raf_params.kd_w, 0.0);
+    add_param("Robot_angle_follower/W/KI", raf_params.ki_w, 0.000);
     add_param("wf/linear_speed", raf_params.wanted_v, DEFAULT_LINEAR_SPEED);
 
     navigator_.setParams(wf_params, rt_params, raf_params);
@@ -136,7 +136,7 @@ void Navigation::run()
         switch(mode_)
         {
             case RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW:
-                ROS_INFO("[Navigation] Wall following");
+//                ROS_INFO("[Navigation] Wall following");
                 navigator_.computeCommands(odo_data_, adc_data_, obj_data_, map_data_, v, w);
                 break;
 
@@ -146,7 +146,7 @@ void Navigation::run()
             break;
 
             case RAS_Names::Navigation_Modes::NAVIGATION_STOP:
-                ROS_INFO("[Navigation] STOP");
+//                ROS_INFO("[Navigation] STOP");
                 v = 0;
                 w = 0;
                 break;
@@ -251,7 +251,7 @@ void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
     msg.color.b = 0.0;
     msg.type = visualization_msgs::Marker::LINE_STRIP;
 
-    ROS_INFO("%i", path.size());
+//    ROS_INFO("%u", path.size());
     for(std::size_t i = 0; i < path.size(); ++i)
     {
         msg.points[i] = path[i];
