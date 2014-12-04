@@ -40,7 +40,7 @@ public:
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params)
     {
-        wall_follower_.setParams(wf_params);
+        //wall_follower_.setParams(wf_params);
         robot_turner_.setParams(rt_params);
         robot_angle_follower_.setParams(raf_params);
     }
@@ -81,6 +81,7 @@ public:
             robot_x_pos_ = odo_msg->x;
             robot_y_pos_ = odo_msg->y;
             robot_angle_ = odo_msg->theta;
+            setRobotFrontPos();
         }
 
         //  If something is currently running, let it work
@@ -97,11 +98,18 @@ public:
         if(command_stack_.size() != 0)
         {
             // Since we are doing a special command, we can reset the wall wall followers distance value
-            wall_follower_.resetWantedDistance();
+           //  wall_follower_.resetWantedDistance();
             // This should always be the case, but just to make sure.
             activateStackedCommand(v, w);
 
         }
+    }
+
+    void setRobotFrontPos()
+    {
+        double distance_ahead = 9.0;
+        robot_front_x_pos_ = robot_x_pos_ + cos(robot_angle_) * distance_ahead;
+        robot_front_y_pos_ = robot_y_pos_ + sin(robot_angle_) * distance_ahead;
     }
 
     std::vector<geometry_msgs::Point> & getPath()
@@ -118,7 +126,7 @@ private:
     };
 
     RAS_Utils::sensors::SensorDistances sd;
-    double robot_x_pos_, robot_y_pos_;
+    double robot_x_pos_, robot_y_pos_, robot_front_x_pos_, robot_front_y_pos_;
     double robot_angle_;
     bool vision_detected_obj_in_front_;
 
@@ -127,7 +135,7 @@ private:
     RobotTurner robot_turner_;
     RobotAligner robot_aligner_;
     RobotAngleFollower robot_angle_follower_;
-    WallFollower wall_follower_;
+   // WallFollower wall_follower_;
 
     std::vector<geometry_msgs::Point> path_;
 
@@ -156,11 +164,11 @@ private:
             wantedDistanceRecentlySet_ = false;
             // Stop the robot. Then back up some distance
             ROS_ERROR("!!! Dangerously close to wheels !!!");
-            turnCommandCombo();
             command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
             command_stack_.push(CommandInfo(COMMAND_STOP));
             return;
         }
+
 
 
         if(!going_home_){
@@ -186,7 +194,7 @@ private:
         double wanted_angle = getWantedAngle();
 
 
-        if(isWallCloseInFront() && path_.size() <= 15)//fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7 )
+        if(isWallCloseInFront() && path_.size() <= 17)//fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7 )
         {
             // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
             wantedDistanceRecentlySet_ = false;
@@ -225,8 +233,19 @@ private:
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
     {
-        path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_x_pos_, robot_y_pos_);
+
+        if(!RAS_Utils::occ_grid::isFree(occ_grid, robot_front_x_pos_, robot_front_y_pos_))
+        {
+            // Because of drift the front pos is a wall or unknown. Lets instead directly use the center robot pos
+            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_x_pos_, robot_y_pos_);
+        } else
+        {
+            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_front_x_pos_, robot_front_y_pos_);
+            path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
+        }
     }
+
+
 
     void activateStackedCommand(double &v, double &w)
     {
