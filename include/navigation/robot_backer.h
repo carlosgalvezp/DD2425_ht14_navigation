@@ -8,13 +8,13 @@
 class RobotBacker
 {
 public:
-    RobotBacker() : activated(false) {}
+    RobotBacker() : activated(false), start_pos_set_(false) {}
 
     void activate(double wanted_v, double wanted_distance)
     {
         resetStartPos();
         this->wanted_v = wanted_v;
-        this->wanted_distance = wanted_distance / 100;
+        this->wanted_distance = wanted_distance / 100.0;
         activated = true;
     }
 
@@ -22,6 +22,7 @@ public:
     {
         this->start_x = start_x;
         this->start_y = start_y;
+        start_pos_set_ = true;
     }
 
     void run(double x, double y, double &v, double &w )
@@ -46,12 +47,13 @@ public:
 
     bool isStartPosSet()
     {
-        return start_x >= 0;
+        return start_pos_set_;
     }
 
 private:
 
     bool activated;
+    bool start_pos_set_;
     double wanted_v;
     double wanted_distance;
     double start_x, start_y;
@@ -63,8 +65,7 @@ private:
 
     void resetStartPos()
     {
-        start_x = -1;
-        start_y = -1;
+        start_pos_set_ = false;
     }
 
 };

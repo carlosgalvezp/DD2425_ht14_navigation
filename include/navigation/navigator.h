@@ -3,16 +3,22 @@
 
 #include <ras_arduino_msgs/ADConverter.h>
 #include <geometry_msgs/Pose2D.h>
+#include <nav_msgs/OccupancyGrid.h>
 
 #include <ras_utils/ras_utils.h>
+#include <ras_utils/occupancy_map_utils.h>
 
 #include <navigation/robot_backer.h>
 #include <navigation/robot_turner.h>
 #include <navigation/robot_stopper.h>
 #include <navigation/wall_follower.h>
 #include <navigation/robot_aligner.h>
+#include <navigation/robot_angle_follower.h>
 
 #include <stack>
+#include <math.h>
+
+#include <cstdlib>
 
 #define COMMAND_STOP                    "stop"
 #define COMMAND_EXPLORER_TURN           "explorer_turn"
@@ -24,29 +30,38 @@
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   7
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
+#define PATH_GRID_POINT_TO_FOLLOW 10 // follow the 10'nth points (means roughly look maximum 10 cm ahead)
+
 class Navigator
 {
 public:
 
-    Navigator() : wantedDistanceRecentlySet_(false) {}
+    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false) {}
 
-    void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params)
+    void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params)
     {
         wall_follower_.setParams(wf_params);
         robot_turner_.setParams(rt_params);
+        robot_angle_follower_.setParams(raf_params);
     }
 
     void computeCommands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
                                          const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg,
                                          const std_msgs::Bool::ConstPtr &obj_msg,
+                                         const nav_msgs::OccupancyGrid::ConstPtr & map_msg,
                                          double &v, double &w)
     {
-        if (adc_msg == nullptr || odo_msg == nullptr)
+        if (adc_msg == nullptr || odo_msg == nullptr || map_msg == nullptr)
         {
-            ROS_ERROR("adc_msg or odo_msg are null!");
+            ROS_ERROR("adc_msg or odo_msg or map_msg are null!");
             return;
         }
 
+        if(finished_) {
+            v = 0;
+            w = 0;
+            return;
+        }
         //Save all input
         {
             vision_detected_obj_in_front_ = (obj_msg != nullptr && obj_msg->data) ? true : false;
@@ -75,7 +90,7 @@ public:
         if(command_stack_.size() == 0)
         {
             // We have no more commands to run. Run logic to add commands
-            exploreRandomly(v, w);
+            exploreRandomly(v, w, *map_msg);
         }
 
 
@@ -87,6 +102,11 @@ public:
             activateStackedCommand(v, w);
 
         }
+    }
+
+    std::vector<geometry_msgs::Point> & getPath()
+    {
+        return path_;
     }
 
 private:
@@ -106,14 +126,20 @@ private:
     RobotBacker robot_backer_;
     RobotTurner robot_turner_;
     RobotAligner robot_aligner_;
+    RobotAngleFollower robot_angle_follower_;
     WallFollower wall_follower_;
+
+    std::vector<geometry_msgs::Point> path_;
 
     std::stack<CommandInfo> command_stack_;
 
     bool wantedDistanceRecentlySet_;
 
+    bool going_home_;
+    bool finished_;
 
-    void exploreRandomly(double &v, double &w)
+
+    void exploreRandomly(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
         auto turnCommandCombo = [&command_stack_](){
                 command_stack_.push(CommandInfo(COMMAND_STOP));
@@ -126,6 +152,7 @@ private:
 
         if(isWallDangerouslyCloseToWheels())
         {
+            // ALWAYS check this first, this is our most important check for not hitting a wall
             wantedDistanceRecentlySet_ = false;
             // Stop the robot. Then back up some distance
             ROS_ERROR("!!! Dangerously close to wheels !!!");
@@ -135,16 +162,70 @@ private:
             return;
         }
 
-        if(isWallCloseInFront())
+
+        if(!going_home_){
+            calculateUnknownPath(occ_grid);
+            if(path_.size() == 0){
+                going_home_ = true;
+                system("espeak 'The bomb has been planted");
+
+            }
+        }
+        if(going_home_) {
+            calculateHomePath(occ_grid);
+        }
+
+        if(going_home_ && path_.size() < 5)
         {
+            system("espeak 'Terrorists win");
+            finished_ = true;
+        }
+
+
+
+        double wanted_angle = getWantedAngle();
+
+
+        if(isWallCloseInFront() && path_.size() <= 15)//fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7 )
+        {
+            // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
             wantedDistanceRecentlySet_ = false;
             // Stop the robot! And afterwards, start the rotating!
             turnCommandCombo();
             return;
         }
 
-        // Nothing special in front of us, just run wall_follower
-        wall_follower_.run(v, w, sd);
+
+
+        robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
+        std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
+        std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
+        RAS_Utils::print(strings, values);
+
+        //wall_follower_.run(v, w, sd);
+    }
+
+    double getWantedAngle()
+    {
+        if(path_.size() <= 0)
+        {
+            // Should not happen, but for safety so we dont throw error;
+            return robot_angle_;
+        }
+
+        geometry_msgs::Point to_point = path_[fmin(PATH_GRID_POINT_TO_FOLLOW, path_.size() - 1)];
+
+        return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
+    }
+
+    void calculateHomePath(const nav_msgs::OccupancyGrid & occ_grid)
+    {
+        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, 0, 0);
+    }
+
+    void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
+    {
+        path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_x_pos_, robot_y_pos_);
     }
 
     void activateStackedCommand(double &v, double &w)
@@ -260,6 +341,7 @@ private:
     bool isWallCloseInFront( ) {
         return sd.front_ < MAX_DIST_FRONT_WALL || vision_detected_obj_in_front_;
     }
+
 };
 
 #endif // NAVIGATOR_H
