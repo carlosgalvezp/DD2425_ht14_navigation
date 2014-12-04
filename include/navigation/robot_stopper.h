@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 
-#define DEFAULT_STOP_TIME_SECONDS 1.0
+#define DEFAULT_STOP_TIME_SECONDS 0.2
 
 class RobotStopper
 {
