@@ -20,7 +20,7 @@
 
   <!-- PID Params for angle following controller -->
 
-  <param name="navigation/Robot_angle_follower/W/KP" value="0.3"/>
+  <param name="navigation/Robot_angle_follower/W/KP" value="1.2"/>
   <param name="navigation/Robot_angle_follower/W/KD" value="0.0"/>
   <param name="navigation/Robot_angle_follower/W/KI" value="0.0"/>
 
