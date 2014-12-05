@@ -220,7 +220,7 @@ private:
             wantedDistanceRecentlySet_ = false;
             // Stop the robot. Then back up some distance
             ROS_ERROR("!!! Dangerously close to wheels !!!");
-            turnCommandCombo();
+            //turnCommandCombo();
             command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
             command_stack_.push(CommandInfo(COMMAND_STOP));
             return;
