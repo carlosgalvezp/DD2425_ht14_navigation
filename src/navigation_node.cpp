@@ -251,7 +251,6 @@ void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
     msg.color.b = 0.0;
     msg.type = visualization_msgs::Marker::LINE_STRIP;
 
-    ROS_INFO("%i", path.size());
     for(std::size_t i = 0; i < path.size(); ++i)
     {
         msg.points[i] = path[i];
