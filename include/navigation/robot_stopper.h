@@ -3,7 +3,7 @@
 
 #include <ros/ros.h>
 
-#define DEFAULT_STOP_TIME_SECONDS 1.0
+#define DEFAULT_STOP_TIME_SECONDS 0.2
 
 class RobotStopper
 {
@@ -25,7 +25,7 @@ public:
     void sleepIfStopped()
     {
         if(stopped_) {
-            ROS_WARN("Sleeping");
+//            ROS_WARN("Sleeping");
             ros::Duration(stop_time_).sleep();
             stopped_ = false;
         }

@@ -26,8 +26,8 @@
 #define COMMAND_DANGER_CLOSE_BACKING    "danger_close_backing"
 #define COMMAND_ALIGN                   "aling"
 
-#define DANGEROUSLY_CLOSE_LIMIT             7.5
-#define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   7
+#define DANGEROUSLY_CLOSE_LIMIT             6.0
+#define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   5
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
 #define PATH_GRID_POINT_TO_FOLLOW 10 // follow the 10'nth points (means roughly look maximum 10 cm ahead)
@@ -36,7 +36,7 @@ class Navigator
 {
 public:
 
-    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false) {}
+    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(false) {}
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params)
     {
@@ -81,6 +81,7 @@ public:
             robot_x_pos_ = odo_msg->x;
             robot_y_pos_ = odo_msg->y;
             robot_angle_ = odo_msg->theta;
+            setRobotFrontPos();
         }
 
         //  If something is currently running, let it work
@@ -97,11 +98,18 @@ public:
         if(command_stack_.size() != 0)
         {
             // Since we are doing a special command, we can reset the wall wall followers distance value
-            wall_follower_.resetWantedDistance();
+             wall_follower_.resetWantedDistance();
             // This should always be the case, but just to make sure.
             activateStackedCommand(v, w);
 
         }
+    }
+
+    void setRobotFrontPos()
+    {
+        double distance_ahead = 0.09;
+        robot_front_x_pos_ = robot_x_pos_ + cos(robot_angle_) * distance_ahead;
+        robot_front_y_pos_ = robot_y_pos_ + sin(robot_angle_) * distance_ahead;
     }
 
     std::vector<geometry_msgs::Point> & getPath()
@@ -118,7 +126,7 @@ private:
     };
 
     RAS_Utils::sensors::SensorDistances sd;
-    double robot_x_pos_, robot_y_pos_;
+    double robot_x_pos_, robot_y_pos_, robot_front_x_pos_, robot_front_y_pos_;
     double robot_angle_;
     bool vision_detected_obj_in_front_;
 
@@ -137,6 +145,9 @@ private:
 
     bool going_home_;
     bool finished_;
+    bool use_path_follower_;
+
+    std::vector<geometry_msgs::Point> wall_follower_points_;
 
 
     void exploreRandomly(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
@@ -148,20 +159,6 @@ private:
                 command_stack_.push(CommandInfo(COMMAND_EXPLORER_TURN));
                 command_stack_.push(CommandInfo(COMMAND_STOP));
         };
-
-
-        if(isWallDangerouslyCloseToWheels())
-        {
-            // ALWAYS check this first, this is our most important check for not hitting a wall
-            wantedDistanceRecentlySet_ = false;
-            // Stop the robot. Then back up some distance
-            ROS_ERROR("!!! Dangerously close to wheels !!!");
-            turnCommandCombo();
-            command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
-            command_stack_.push(CommandInfo(COMMAND_STOP));
-            return;
-        }
-
 
         if(!going_home_){
             calculateUnknownPath(occ_grid);
@@ -181,28 +178,64 @@ private:
             finished_ = true;
         }
 
+        if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+        {
+            // ALWAYS check this first, this is our most important check for not hitting a wall
+            wantedDistanceRecentlySet_ = false;
+            // Stop the robot. Then back up some distance
+            ROS_ERROR("!!! Dangerously close to wheels !!!");
+            turnCommandCombo();
+            command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
+            command_stack_.push(CommandInfo(COMMAND_STOP));
+            return;
+        }
 
 
         double wanted_angle = getWantedAngle();
 
 
-        if(isWallCloseInFront() && path_.size() <= 15)//fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7 )
+        if(isWallCloseInFront())
         {
-            // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
-            wantedDistanceRecentlySet_ = false;
-            // Stop the robot! And afterwards, start the rotating!
-            turnCommandCombo();
-            return;
+            if(!use_path_follower_)
+            {
+                testIfWeShouldActivatePathFollower();
+            }
+
+            if(!use_path_follower_ || fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+            {
+                // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
+                wantedDistanceRecentlySet_ = false;
+                // Stop the robot! And afterwards, start the rotating!
+                turnCommandCombo();
+                return;
+            }
         }
 
+        if(use_path_follower_) {
+            robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
+            std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
+            std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
+            RAS_Utils::print(strings, values);
+        } else
+        {
+            wall_follower_.run(v, w, sd);
+        }
+    }
 
-
-        robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
-        std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
-        std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
-        RAS_Utils::print(strings, values);
-
-        //wall_follower_.run(v, w, sd);
+    void testIfWeShouldActivatePathFollower()
+    {
+        geometry_msgs::Point new_point;
+        new_point.x = robot_x_pos_;
+        new_point.y = robot_y_pos_;
+        for(geometry_msgs::Point point : wall_follower_points_)
+        {
+            if(sqrt(pow(new_point.x - point.x, 2)) + pow(new_point.y - point.y, 2) < 0.1)
+            {
+                system("espeak 'Switching to path following");
+                use_path_follower_ = true;
+            }
+        }
+        wall_follower_points_.push_back(new_point);
     }
 
     double getWantedAngle()
@@ -225,8 +258,19 @@ private:
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
     {
-        path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_x_pos_, robot_y_pos_);
+
+        if(!RAS_Utils::occ_grid::isFree(occ_grid, robot_front_x_pos_, robot_front_y_pos_))
+        {
+            // Because of drift the front pos is a wall or unknown. Lets instead directly use the center robot pos
+            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_x_pos_, robot_y_pos_);
+        } else
+        {
+            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_front_x_pos_, robot_front_y_pos_);
+            path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
+        }
     }
+
+
 
     void activateStackedCommand(double &v, double &w)
     {
