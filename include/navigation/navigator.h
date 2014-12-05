@@ -191,11 +191,17 @@ private:
     void explorePhase(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
         if(!going_home_){
+            if(use_path_follower_) {
             calculateUnknownPath(occ_grid);
-            if(path_.size() == 0){
-                going_home_ = true;
-                system("espeak 'The bomb has been planted");
-
+                if(path_.size() == 0){
+                    going_home_ = true;
+                    system("espeak 'The bomb has been planted");
+                }
+            }
+            else
+            {
+                // Not using wall_follower, clear the path
+                path_.clear();
             }
         }
         if(going_home_) {
@@ -328,7 +334,7 @@ private:
         new_point.y = robot_y_pos_;
         for(geometry_msgs::Point point : wall_follower_points_)
         {
-            if(sqrt(pow(new_point.x - point.x, 2)) + pow(new_point.y - point.y, 2) < 0.05)
+            if(sqrt(pow(new_point.x - point.x, 2) + pow(new_point.y - point.y, 2)) < 0.08)
             {
                 system("espeak 'Switching to path following");
                 use_path_follower_ = true;
