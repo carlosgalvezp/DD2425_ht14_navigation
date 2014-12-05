@@ -16,6 +16,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
 
+#include <fstream>
+
 #define QUEUE_SIZE 1
 #define PUBLISH_RATE 50
 
@@ -65,6 +67,9 @@ private:
     geometry_msgs::Pose2D::ConstPtr odo_data_;
     std_msgs::Bool::ConstPtr obj_data_;
     nav_msgs::OccupancyGrid::ConstPtr map_data_;
+
+    int phase_;
+    std::queue<geometry_msgs::Point> getObjectsToRetrieve();
 };
 
 int main (int argc, char* argv[])
@@ -121,12 +126,18 @@ void Navigation::addParams()
     add_param("Robot_angle_follower/W/KD", raf_params.kd_w, 0.0);
     add_param("Robot_angle_follower/W/KI", raf_params.ki_w, 0.000);
     add_param("wf/linear_speed", raf_params.wanted_v, DEFAULT_LINEAR_SPEED);
+    add_param(PARAM_PHASE, phase_, 0);
 
-    navigator_.setParams(wf_params, rt_params, raf_params);
+    navigator_.setParams(wf_params, rt_params, raf_params, phase_);
 }
 
 void Navigation::run()
 {
+    if(phase_ = 1)
+    {
+        navigator_.setObjectsToRetrieve(getObjectsToRetrieve());
+    }
+
     ros::Rate loop_rate(PUBLISH_RATE);
     while(ros::ok())
     {
@@ -258,4 +269,25 @@ void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
     }
 
     path_pub_.publish(msg_array);
+}
+
+std::queue<geometry_msgs::Point> Navigation::getObjectsToRetrieve()
+{
+    std::queue<geometry_msgs::Point> object_points;
+
+    std::ifstream read_file(RAS_Names::OBJECT_BEST_PATH_PATH);
+    int id;
+    double x, y;
+    while (read_file >> id >> x >> y)
+    {
+        geometry_msgs::Point new_point;
+        new_point.x = x;
+        new_point.y = y;
+        if(fabs(x) > 0.001 || fabs(y) > 0.001) {
+            // We skip the start and end points that are (0,0)
+            object_points.push(new_point);
+        }
+    }
+    read_file.close();
+    return object_points;
 }

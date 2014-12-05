@@ -16,6 +16,7 @@
 #include <navigation/robot_angle_follower.h>
 
 #include <stack>
+#include <queue>
 #include <math.h>
 
 #include <cstdlib>
@@ -32,17 +33,34 @@
 
 #define PATH_GRID_POINT_TO_FOLLOW 10 // follow the 10'nth points (means roughly look maximum 10 cm ahead)
 
+#define FIRST_PHASE     0
+#define SECOND_PHASE    1
+
 class Navigator
 {
 public:
 
     Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(false) {}
 
-    void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params)
+    void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params, int phase)
     {
         wall_follower_.setParams(wf_params);
         robot_turner_.setParams(rt_params);
         robot_angle_follower_.setParams(raf_params);
+        phase_ = phase;
+    }
+
+    void setObjectsToRetrieve(std::queue<geometry_msgs::Point> objects_to_retrieve)
+    {
+        objects_to_retrieve_ = objects_to_retrieve;
+        if(objects_to_retrieve.size() != 0)
+        {
+            current_object_point_ = objects_to_retrieve_.front();
+            objects_to_retrieve_.pop();
+        } else {
+            current_object_point_.x = 0;
+            current_object_point_.y = 0;
+        }
     }
 
     void computeCommands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
@@ -91,7 +109,12 @@ public:
         if(command_stack_.size() == 0)
         {
             // We have no more commands to run. Run logic to add commands
-            exploreRandomly(v, w, *map_msg);
+            if(phase_ == FIRST_PHASE) {
+                explorePhase(v, w, *map_msg);
+            } else if(phase_ == SECOND_PHASE)
+            {
+                retrieveObjects(v, w, *map_msg);
+            }
         }
 
 
@@ -150,16 +173,23 @@ private:
     std::vector<geometry_msgs::Point> wall_follower_points_;
 
 
-    void exploreRandomly(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
-    {
-        auto turnCommandCombo = [&command_stack_](){
-                command_stack_.push(CommandInfo(COMMAND_STOP));
-                command_stack_.push(CommandInfo(COMMAND_ALIGN));
-                command_stack_.push(CommandInfo(COMMAND_STOP));
-                command_stack_.push(CommandInfo(COMMAND_EXPLORER_TURN));
-                command_stack_.push(CommandInfo(COMMAND_STOP));
-        };
+    int phase_;
 
+    // Just for second phase
+    std::queue<geometry_msgs::Point> objects_to_retrieve_;
+    geometry_msgs::Point current_object_point_;
+
+    void turnCommandCombo()
+    {
+        command_stack_.push(CommandInfo(COMMAND_STOP));
+        command_stack_.push(CommandInfo(COMMAND_ALIGN));
+        command_stack_.push(CommandInfo(COMMAND_STOP));
+        command_stack_.push(CommandInfo(COMMAND_EXPLORER_TURN));
+        command_stack_.push(CommandInfo(COMMAND_STOP));
+    }
+
+    void explorePhase(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
+    {
         if(!going_home_){
             calculateUnknownPath(occ_grid);
             if(path_.size() == 0){
@@ -222,6 +252,75 @@ private:
         }
     }
 
+    void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
+    {
+        caculatePathToPoint(occ_grid, current_object_point_.x, current_object_point_.y);
+
+        if(currentObjectHasBeenRetrieved())
+        {
+            if(going_home_)
+            {
+                // we are home
+                v = 0;
+                w = 0;
+                return;
+            }
+            if(objects_to_retrieve_.size() > 0) {
+                current_object_point_ = objects_to_retrieve_.front();
+                objects_to_retrieve_.pop();
+            } else
+            {
+                current_object_point_.x = 0;
+                current_object_point_.y = 0;
+                going_home_ = true;
+            }
+        }
+
+
+        if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+        {
+            // ALWAYS check this first, this is our most important check for not hitting a wall
+            wantedDistanceRecentlySet_ = false;
+            // Stop the robot. Then back up some distance
+            ROS_ERROR("!!! Dangerously close to wheels !!!");
+            turnCommandCombo();
+            command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
+            command_stack_.push(CommandInfo(COMMAND_STOP));
+            return;
+        }
+
+        double wanted_angle = getWantedAngle();
+
+
+        if(isWallCloseInFront())
+        {
+            if(!use_path_follower_ || fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+            {
+                // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
+                wantedDistanceRecentlySet_ = false;
+                // Stop the robot! And afterwards, start the rotating!
+                turnCommandCombo();
+                return;
+            }
+        }
+
+        robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
+        std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
+        std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
+        RAS_Utils::print(strings, values);
+    }
+
+
+    bool currentObjectHasBeenRetrieved() // TODO: should make sure that we actually have seen the object.
+    {
+        // right now only checks that we are really close to object detection position
+        if(path_.size() < 5)
+        {
+            return true;
+        }
+        return false;
+    }
+
     void testIfWeShouldActivatePathFollower()
     {
         geometry_msgs::Point new_point;
@@ -255,6 +354,12 @@ private:
     {
         path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, 0, 0);
     }
+
+    void caculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, double to_x, double to_y)
+    {
+        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, to_x, to_y);
+    }
+
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
     {
