@@ -31,6 +31,7 @@ public:
 private:
     // ** Publishers and subscribers
     ros::Publisher twist_pub_;
+    ros::Publisher pose2d_pub_;
     ros::Publisher path_pub_;
 
     ros::Subscriber adc_sub_;

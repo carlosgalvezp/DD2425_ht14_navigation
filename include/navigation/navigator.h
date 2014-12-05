@@ -14,6 +14,7 @@
 #include <navigation/wall_follower.h>
 #include <navigation/robot_aligner.h>
 #include <navigation/robot_angle_follower.h>
+#include <navigation/robot_odometry_aligner.h>
 
 #include <stack>
 #include <queue>
@@ -25,7 +26,8 @@
 #define COMMAND_EXPLORER_TURN           "explorer_turn"
 #define COMMAND_BACKUP                  "backup"
 #define COMMAND_DANGER_CLOSE_BACKING    "danger_close_backing"
-#define COMMAND_ALIGN                   "aling"
+#define COMMAND_ALIGN                   "align"
+#define COMMAND_ALIGN_POS_DIR           "align_pos_dir"
 
 #define DANGEROUSLY_CLOSE_LIMIT             6.0
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   5
@@ -36,11 +38,13 @@
 #define FIRST_PHASE     0
 #define SECOND_PHASE    1
 
+#define REALIGN_POS_TIMER 15
+
 class Navigator
 {
 public:
 
-    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(false) {}
+    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(false), realign_timer_(ros::WallTime::now()) {}
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params, int phase)
     {
@@ -158,6 +162,7 @@ private:
     RobotTurner robot_turner_;
     RobotAligner robot_aligner_;
     RobotAngleFollower robot_angle_follower_;
+    RobotOdometryAligner robot_odometry_aligner_;
     WallFollower wall_follower_;
 
     std::vector<geometry_msgs::Point> path_;
@@ -172,8 +177,9 @@ private:
 
     std::vector<geometry_msgs::Point> wall_follower_points_;
 
-
     int phase_;
+
+    ros::WallTime realign_timer_;
 
     // Just for second phase
     std::queue<geometry_msgs::Point> objects_to_retrieve_;
@@ -204,6 +210,16 @@ private:
                 path_.clear();
             }
         }
+
+        /*
+        if(shouldReAlignPosAndDir())
+        {
+            command_stack_.push(CommandInfo(COMMAND_ALIGN_POS_DIR));
+            command_stack_.push(CommandInfo(COMMAND_ALIGN));
+            command_stack_.push(CommandInfo(COMMAND_STOP));
+            return;
+        }*/
+
         if(going_home_) {
             calculateHomePath(occ_grid);
         }
@@ -255,6 +271,16 @@ private:
         } else
         {
             wall_follower_.run(v, w, sd);
+        }
+    }
+
+
+    bool shouldReAlignPosAndDir()
+    {
+        ros::WallTime current_t = ros::WallTime::now();
+        if( (current_t.toSec() - realign_timer_.toSec()) && RAS_Utils::sensors::canFollowAWall(sd))
+        {
+            return true;
         }
     }
 
@@ -417,6 +443,7 @@ private:
         else if(command == COMMAND_EXPLORER_TURN) activateExplorerTurner(robot_angle_);
         else if(command == COMMAND_DANGER_CLOSE_BACKING) robot_backer_.activate(DANGEROUSLY_CLOSE_BACKUP_SPEED, DANGEROUSLY_CLOSE_BACKUP_DISTANCE);
         else if(command == COMMAND_ALIGN) robot_aligner_.activate();
+        else if(command == COMMAND_ALIGN_POS_DIR) robot_odometry_aligner_.activate(sd);
         else ROS_ERROR("!!! UNKNOWN COMMAND IN STACK !!!");
     }
 
