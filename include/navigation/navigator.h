@@ -328,7 +328,7 @@ private:
         new_point.y = robot_y_pos_;
         for(geometry_msgs::Point point : wall_follower_points_)
         {
-            if(sqrt(pow(new_point.x - point.x, 2)) + pow(new_point.y - point.y, 2) < 0.1)
+            if(sqrt(pow(new_point.x - point.x, 2)) + pow(new_point.y - point.y, 2) < 0.05)
             {
                 system("espeak 'Switching to path following");
                 use_path_follower_ = true;
