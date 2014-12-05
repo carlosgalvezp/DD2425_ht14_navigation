@@ -31,7 +31,7 @@
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   5
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
-#define PATH_GRID_POINT_TO_FOLLOW 10 // follow the 10'nth points (means roughly look maximum 10 cm ahead)
+#define PATH_GRID_POINT_TO_FOLLOW 8 // follow the 10'nth points (means roughly look maximum 10 cm ahead)
 
 #define FIRST_PHASE     0
 #define SECOND_PHASE    1
@@ -254,7 +254,7 @@ private:
 
     void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
-        caculatePathToPoint(occ_grid, current_object_point_.x, current_object_point_.y);
+        calculatePathToPoint(occ_grid, current_object_point_.x, current_object_point_.y);
 
         if(currentObjectHasBeenRetrieved())
         {
@@ -355,7 +355,7 @@ private:
         path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, 0, 0);
     }
 
-    void caculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, double to_x, double to_y)
+    void calculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, double to_x, double to_y)
     {
         path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, to_x, to_y);
     }
@@ -363,6 +363,18 @@ private:
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
     {
+
+        if(path_.size() > 20)
+        {
+            // Pretty long to the unknown area, no need to update where to go, just how to go there.
+
+            geometry_msgs::Point to_point = path_[path_.size() - 1];
+            calculatePathToPoint(occ_grid, to_point.x, to_point.y);
+            if(path_.size() > 1) {
+                // We only accept this path if we actually could get there. Otherwise contrinue and find a new path
+                return;
+            }
+        }
 
         if(!RAS_Utils::occ_grid::isFree(occ_grid, robot_front_x_pos_, robot_front_y_pos_))
         {
