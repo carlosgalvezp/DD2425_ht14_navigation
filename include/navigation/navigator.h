@@ -375,10 +375,14 @@ private:
             // Pretty long to the unknown area, no need to update where to go, just how to go there.
 
             geometry_msgs::Point to_point = path_[path_.size() - 1];
-            calculatePathToPoint(occ_grid, to_point.x, to_point.y);
-            if(path_.size() > 1) {
-                // We only accept this path if we actually could get there. Otherwise contrinue and find a new path
-                return;
+            if(RAS_Utils::occ_grid::isUnknown(occ_grid, to_point.x, to_point.y))
+            {
+                // But also only do this if the point is still a unknown point
+                calculatePathToPoint(occ_grid, to_point.x, to_point.y);
+                if(path_.size() > 0) {
+                    // We only accept this path if we actually could get there. Otherwise contrinue and find a new path
+                    return;
+                }
             }
         }
 
