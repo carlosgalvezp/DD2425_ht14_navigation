@@ -220,10 +220,6 @@ private:
             }
         }
 
-      //  temp_time = ros::WallTime::now();
-         calculatePathToPoint(occ_grid, cost_grid, 0, 0);
-      //   ROS_INFO("BFS_TIME: %f", ros::WallTime::now().toSec() - temp_time.toSec());
-
         /*
         if(shouldReAlignPosAndDir())
         {
@@ -246,11 +242,16 @@ private:
 
         if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
         {
+            if(!use_path_follower_)
+            {
+                testIfWeShouldActivatePathFollower();
+            }
+
             // ALWAYS check this first, this is our most important check for not hitting a wall
             wantedDistanceRecentlySet_ = false;
             // Stop the robot. Then back up some distance
             ROS_ERROR("!!! Dangerously close to wheels !!!");
-            //turnCommandCombo();
+
             command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
             command_stack_.push(CommandInfo(COMMAND_STOP));
             return;
