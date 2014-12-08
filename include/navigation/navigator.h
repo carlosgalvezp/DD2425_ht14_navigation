@@ -4,6 +4,7 @@
 #include <ras_arduino_msgs/ADConverter.h>
 #include <geometry_msgs/Pose2D.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <std_msgs/Int64MultiArray.h>
 
 #include <ras_utils/ras_utils.h>
 #include <ras_utils/occupancy_map_utils.h>
@@ -14,7 +15,7 @@
 #include <navigation/wall_follower.h>
 #include <navigation/robot_aligner.h>
 #include <navigation/robot_angle_follower.h>
-#include <navigation/robot_odometry_aligner.h>
+//#include <navigation/robot_odometry_aligner.h>
 
 #include <stack>
 #include <queue>
@@ -71,13 +72,17 @@ public:
                                          const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg,
                                          const std_msgs::Bool::ConstPtr &obj_msg,
                                          const nav_msgs::OccupancyGrid::ConstPtr & map_msg,
+                                         const std_msgs::Int64MultiArray::ConstPtr & map_cost_msg,
                                          double &v, double &w)
     {
-        if (adc_msg == nullptr || odo_msg == nullptr || map_msg == nullptr)
+
+
+        if (adc_msg == nullptr || odo_msg == nullptr || map_msg == nullptr || map_cost_msg == nullptr)
         {
-            ROS_ERROR("adc_msg or odo_msg or map_msg are null!");
+            ROS_ERROR("adc_msg or odo_msg or map_msg or map_cost_msg are null!");
             return;
         }
+
 
         if(finished_) {
             v = 0;
@@ -114,10 +119,10 @@ public:
         {
             // We have no more commands to run. Run logic to add commands
             if(phase_ == FIRST_PHASE) {
-                explorePhase(v, w, *map_msg);
+                explorePhase(v, w, *map_msg, *map_cost_msg);
             } else if(phase_ == SECOND_PHASE)
             {
-                retrieveObjects(v, w, *map_msg);
+                retrieveObjects(v, w, *map_msg, *map_cost_msg);
             }
         }
 
@@ -162,7 +167,7 @@ private:
     RobotTurner robot_turner_;
     RobotAligner robot_aligner_;
     RobotAngleFollower robot_angle_follower_;
-    RobotOdometryAligner robot_odometry_aligner_;
+   // RobotOdometryAligner robot_odometry_aligner_;
     WallFollower wall_follower_;
 
     std::vector<geometry_msgs::Point> path_;
@@ -194,11 +199,15 @@ private:
         command_stack_.push(CommandInfo(COMMAND_STOP));
     }
 
-    void explorePhase(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
+    ros::WallTime temp_time;
+
+
+    void explorePhase(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
+
         if(!going_home_){
             if(use_path_follower_) {
-            calculateUnknownPath(occ_grid);
+            calculateUnknownPath(occ_grid, cost_grid);
                 if(path_.size() == 0){
                     going_home_ = true;
                     system("espeak 'The bomb has been planted");
@@ -211,6 +220,10 @@ private:
             }
         }
 
+      //  temp_time = ros::WallTime::now();
+         calculatePathToPoint(occ_grid, cost_grid, 0, 0);
+      //   ROS_INFO("BFS_TIME: %f", ros::WallTime::now().toSec() - temp_time.toSec());
+
         /*
         if(shouldReAlignPosAndDir())
         {
@@ -221,7 +234,7 @@ private:
         }*/
 
         if(going_home_) {
-            calculateHomePath(occ_grid);
+            calculateHomePath(occ_grid, cost_grid);
         }
 
         if(going_home_ && path_.size() < 5)
@@ -229,6 +242,7 @@ private:
             system("espeak 'Terrorists win");
             finished_ = true;
         }
+
 
         if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
         {
@@ -241,6 +255,7 @@ private:
             command_stack_.push(CommandInfo(COMMAND_STOP));
             return;
         }
+
 
 
         double wanted_angle = getWantedAngle();
@@ -263,6 +278,7 @@ private:
             }
         }
 
+
         if(use_path_follower_) {
             robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
             std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
@@ -284,9 +300,9 @@ private:
         }
     }
 
-    void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
+    void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
-        calculatePathToPoint(occ_grid, current_object_point_.x, current_object_point_.y);
+        calculatePathToPoint(occ_grid, cost_grid, current_object_point_.x, current_object_point_.y);
 
         if(currentObjectHasBeenRetrieved())
         {
@@ -382,18 +398,18 @@ private:
         return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
     }
 
-    void calculateHomePath(const nav_msgs::OccupancyGrid & occ_grid)
+    void calculateHomePath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
-        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, 0, 0);
+        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, 0, 0);
     }
 
-    void calculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, double to_x, double to_y)
+    void calculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid, double to_x, double to_y)
     {
-        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, to_x, to_y);
+        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, to_x, to_y);
     }
 
 
-    void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid)
+    void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
 
         if(path_.size() > 20)
@@ -404,7 +420,7 @@ private:
             if(RAS_Utils::occ_grid::isUnknown(occ_grid, to_point.x, to_point.y))
             {
                 // But also only do this if the point is still a unknown point
-                calculatePathToPoint(occ_grid, to_point.x, to_point.y);
+                calculatePathToPoint(occ_grid, cost_grid, to_point.x, to_point.y);
                 if(path_.size() > 0) {
                     // We only accept this path if we actually could get there. Otherwise contrinue and find a new path
                     return;
@@ -415,11 +431,11 @@ private:
         if(!RAS_Utils::occ_grid::isFree(occ_grid, robot_front_x_pos_, robot_front_y_pos_))
         {
             // Because of drift the front pos is a wall or unknown. Lets instead directly use the center robot pos
-            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_x_pos_, robot_y_pos_);
+            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_);
         } else
         {
-            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, robot_front_x_pos_, robot_front_y_pos_);
-            path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
+            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
+            path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
         }
     }
 
@@ -443,7 +459,7 @@ private:
         else if(command == COMMAND_EXPLORER_TURN) activateExplorerTurner(robot_angle_);
         else if(command == COMMAND_DANGER_CLOSE_BACKING) robot_backer_.activate(DANGEROUSLY_CLOSE_BACKUP_SPEED, DANGEROUSLY_CLOSE_BACKUP_DISTANCE);
         else if(command == COMMAND_ALIGN) robot_aligner_.activate();
-        else if(command == COMMAND_ALIGN_POS_DIR) robot_odometry_aligner_.activate(sd);
+       // else if(command == COMMAND_ALIGN_POS_DIR) robot_odometry_aligner_.activate(sd);
         else ROS_ERROR("!!! UNKNOWN COMMAND IN STACK !!!");
     }
 

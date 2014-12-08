@@ -10,6 +10,7 @@
 #include <navigation/wall_follower.h>
 #include <navigation/navigator.h>
 #include <nav_msgs/OccupancyGrid.h>
+#include <std_msgs/Int64MultiArray.h>
 
 #include <ras_utils/graph/graph.h>
 #include <ras_utils/graph/dfs_planner.h>
@@ -28,6 +29,7 @@ public:
     Navigation();
     void run();
 
+
 private:
     // ** Publishers and subscribers
     ros::Publisher twist_pub_;
@@ -38,6 +40,7 @@ private:
     ros::Subscriber odo_sub_;
     ros::Subscriber obj_sub_;
     ros::Subscriber map_sub_;
+    ros::Subscriber map_cost_sub_;
 
     // ** Services
     ros::ServiceClient srv_out_;
@@ -48,6 +51,7 @@ private:
     void odoCallback(const geometry_msgs::Pose2D::ConstPtr& msg);
     void objCallback(const std_msgs::Bool::ConstPtr& msg);
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
+    void mapCostCallback(const std_msgs::Int64MultiArray::ConstPtr &msg);
     // Service callback
     bool srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp);
 
@@ -68,6 +72,7 @@ private:
     geometry_msgs::Pose2D::ConstPtr odo_data_;
     std_msgs::Bool::ConstPtr obj_data_;
     nav_msgs::OccupancyGrid::ConstPtr map_data_;
+    std_msgs::Int64MultiArray::ConstPtr map_cost_data_;
 
     int phase_;
     std::queue<geometry_msgs::Point> getObjectsToRetrieve();
@@ -99,6 +104,7 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
     odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallback, this);
     obj_sub_ = n.subscribe(TOPIC_OBSTACLE, 1, &Navigation::objCallback, this);
     map_sub_ = n.subscribe(TOPIC_MAP_OCC_GRID_THICK, 1, &Navigation::mapCallback, this);
+    map_cost_sub_ = n.subscribe(TOPIC_MAP_COST, 1, &Navigation::mapCostCallback, this);
     // Service callback
     srv_in_ = n.advertiseService(SRV_NAVIGATION_IN, &Navigation::srvCallback, this);
 
@@ -147,9 +153,10 @@ void Navigation::run()
         // ** Compute velocity commands
         switch(mode_)
         {
+
             case RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW:
 //                ROS_INFO("[Navigation] Wall following");
-                navigator_.computeCommands(odo_data_, adc_data_, obj_data_, map_data_, v, w);
+                navigator_.computeCommands(odo_data_, adc_data_, obj_data_, map_data_, map_cost_data_, v, w);
                 break;
 
             case RAS_Names::Navigation_Modes::NAVIGATION_GO_OBJECT:
@@ -216,6 +223,11 @@ void Navigation::objCallback(const std_msgs::Bool::ConstPtr& msg)
 void Navigation::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 {
     map_data_ = msg;
+}
+
+void Navigation::mapCostCallback(const std_msgs::Int64MultiArray::ConstPtr& msg)
+{
+    map_cost_data_ = msg;
 }
 
 bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp)
