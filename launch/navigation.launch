@@ -4,7 +4,7 @@
   <param name="navigation/wf/W/KP" value="0.03"/> <!--0.04-->
   <param name="navigation/wf/W/KD" value="0.4"/> <!--0.5-->
   <param name="navigation/wf/W/KI" value="0.0000"/>
-  <param name="navigation/wf/linear_speed" value="0.1"/>
+  <param name="navigation/wf/linear_speed" value="0.12"/>
   <param name="navigation/wf/wanted_distance" value="10"/>
 
   <!-- PID Params for distance-to-wall controller -->
