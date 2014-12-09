@@ -258,7 +258,7 @@ private:
 
 
 
-        double wanted_angle = getWantedAngle();
+        double wanted_angle = getWantedAngle(occ_grid);
 
 
         if(isWallCloseInFront())
@@ -337,7 +337,7 @@ private:
             return;
         }
 
-        double wanted_angle = getWantedAngle();
+        double wanted_angle = getWantedAngle(occ_grid);
 
 
         if(isWallCloseInFront())
@@ -385,7 +385,7 @@ private:
         wall_follower_points_.push_back(new_point);
     }
 
-    double getWantedAngle()
+    double getWantedAngle(const nav_msgs::OccupancyGrid & occ_grid)
     {
         if(path_.size() <= 0)
         {
@@ -393,9 +393,40 @@ private:
             return robot_angle_;
         }
 
-        geometry_msgs::Point to_point = path_[fmin(PATH_GRID_POINT_TO_FOLLOW, path_.size() - 1)];
+        geometry_msgs::Point to_point = getPointToFollow(occ_grid);
 
         return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
+    }
+
+    geometry_msgs::Point getPointToFollow(const nav_msgs::OccupancyGrid & occ_grid)
+    {
+        int best_point = 0;
+        bool point_is_good = true;
+        for(int i = 0; i < path_.size() && point_is_good; i++)
+        {
+            geometry_msgs::Point & point = path_[i];
+
+            double distance = RAS_Utils::euclidean_distance(robot_x_pos_, robot_y_pos_, point.x, point.y);
+            double angle = atan2(point.y - robot_y_pos_,  point.x - robot_x_pos_);
+
+            for(int part_dist = 0; part_dist <= distance; part_dist++)
+            {
+                double x_pos = robot_x_pos_ + cos(angle) * distance;
+                double y_pos = robot_y_pos_ + sin(angle) * distance;
+                if(!RAS_Utils::occ_grid::isFree(occ_grid, x_pos, y_pos))
+                {
+                    point_is_good = false;
+                    break;
+                }
+            }
+            if(point_is_good)
+            {
+                best_point++;
+            }
+        }
+        ROS_INFO("Best point: %u", best_point);
+
+        return path_[best_point];
     }
 
     void calculateHomePath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
