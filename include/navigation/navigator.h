@@ -210,7 +210,7 @@ private:
             calculateUnknownPath(occ_grid, cost_grid);
                 if(path_.size() == 0){
                     going_home_ = true;
-                    system("espeak 'The bomb has been planted");
+                    system("espeak 'The bomb has been planted'");
                 }
             }
             else
@@ -235,7 +235,7 @@ private:
 
         if(going_home_ && path_.size() < 5)
         {
-            system("espeak 'Terrorists win");
+            system("espeak 'Terrorists win'");
             finished_ = true;
         }
 

@@ -36,7 +36,12 @@ public:
     {
         // compute angular velocity
         double diff = wanted_angle - current_angle;
+        ROS_INFO("DIFF: %.3f Current_angle: %.3f sWanted: %.3f", diff, current_angle, wanted_angle);
+
         diff = RAS_Utils::normalize_angle( diff );
+        ROS_INFO("DIFF: %.3f", diff);
+
+
 
         if(diff > M_PI_4)
         {
@@ -46,6 +51,9 @@ public:
         {
             diff = -M_PI_4;
         }
+        ROS_INFO("DIFF: %.3f", diff);
+
+
         controller_w.setData(0, -diff);
         w = controller_w.computeControl();
 
