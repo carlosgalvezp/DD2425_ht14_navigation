@@ -134,7 +134,7 @@ void Navigation::addParams()
     add_param("Robot_angle_follower/W/KI", raf_params.ki_w, 0.000);
     add_param("wf/linear_speed", raf_params.wanted_v, DEFAULT_LINEAR_SPEED);
     add_param(PARAM_PHASE, phase_, 0);
-
+    add_param(PARAM_ROBOT_VELOCITY, raf_params.wanted_v, raf_params.wanted_v);
     navigator_.setParams(wf_params, rt_params, raf_params, phase_);
 }
 
