@@ -45,7 +45,7 @@ class Navigator
 {
 public:
 
-    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(false), realign_timer_(ros::WallTime::now()) {}
+    Navigator() : seconds_until_recompute_path_(0), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(false), realign_timer_(ros::WallTime::now()) {}
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params, int phase)
     {
@@ -186,6 +186,9 @@ private:
 
     ros::WallTime realign_timer_;
 
+    ros::WallTime latest_path_update_time_;
+    double seconds_until_recompute_path_;
+
     // Just for second phase
     std::queue<geometry_msgs::Point> objects_to_retrieve_;
     geometry_msgs::Point current_object_point_;
@@ -246,7 +249,7 @@ private:
             {
                 testIfWeShouldActivatePathFollower();
             }
-
+            updatePathNextIteration();
             // ALWAYS check this first, this is our most important check for not hitting a wall
             wantedDistanceRecentlySet_ = false;
             // Stop the robot. Then back up some distance
@@ -271,6 +274,7 @@ private:
 
             if(!use_path_follower_ || fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
             {
+                updatePathNextIteration();
                 // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
                 wantedDistanceRecentlySet_ = false;
                 // Stop the robot! And afterwards, start the rotating!
@@ -294,11 +298,10 @@ private:
 
     bool shouldReAlignPosAndDir()
     {
-        ros::WallTime current_t = ros::WallTime::now();
-        if( (current_t.toSec() - realign_timer_.toSec()) && RAS_Utils::sensors::canFollowAWall(sd))
-        {
-            return true;
-        }
+        //if( (current_t.toSec() - realign_timer_.toSec()) && RAS_Utils::sensors::canFollowAWall(sd))
+       // {
+       //     return true;
+       // }
     }
 
     void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
@@ -401,17 +404,23 @@ private:
 
     void calculateHomePath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
-        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, 0, 0);
+        calculatePathToPoint(occ_grid, cost_grid, 0, 0);
     }
 
     void calculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid, double to_x, double to_y)
     {
-        path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, to_x, to_y);
+        purgePath();
+        if(timeToComputeNewPath())
+        {
+            path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, to_x, to_y);
+            calculateTimeUntilNextPath();
+        }
     }
 
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
+        purgePath();
 
         if(path_.size() > 20)
         {
@@ -429,18 +438,63 @@ private:
             }
         }
 
-        if(!RAS_Utils::occ_grid::isFree(occ_grid, robot_front_x_pos_, robot_front_y_pos_))
-        {
-            // Because of drift the front pos is a wall or unknown. Lets instead directly use the center robot pos
-            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_);
-        } else
+
+        if(timeToComputeNewPath())
         {
             path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
             path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
+            calculateTimeUntilNextPath();
         }
     }
 
+    void purgePath()
+    {
+        int closest_index = 0;
+        double closest_distance = -1;
+        double current_distance;
+        for(int i = 0; i < 25 || i < path_.size(); i++)
+        {
+            geometry_msgs::Point & point = path_[i];
+            current_distance = RAS_Utils::euclidean_distance(robot_x_pos_, robot_y_pos_, point.x, point.y);
+            if(current_distance < closest_distance || closest_distance == -1)
+            {
+                closest_index = i;
+                closest_distance = current_distance;
+            }
+        }
 
+        // Remove the points we have allready passed
+        if(closest_index != 0)
+        {
+            path_.erase(path_.begin(), path_.begin() + closest_index);
+        }
+    }
+
+    void calculateTimeUntilNextPath()
+    {
+        ROS_INFO("!!! NEW PATH !!!");
+        latest_path_update_time_ = ros::WallTime::now();
+        seconds_until_recompute_path_ = path_.size() / 50.0;
+    }
+
+    bool timeToComputeNewPath()
+    {
+        if(ros::WallTime::now().toSec() - latest_path_update_time_.toSec() > seconds_until_recompute_path_)
+        {
+            return true;
+        }
+
+        if(path_.size() < 15)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    void updatePathNextIteration()
+    {
+        seconds_until_recompute_path_ = -1; // Recompute path the next time
+    }
 
     void activateStackedCommand(double &v, double &w)
     {
