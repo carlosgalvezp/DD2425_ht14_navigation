@@ -42,7 +42,7 @@ public:
         ROS_INFO("DIFF: %.3f", diff);
 
 
-
+/*
         if(diff > M_PI_4)
         {
             diff = M_PI_4;
@@ -51,6 +51,7 @@ public:
         {
             diff = -M_PI_4;
         }
+        */
         ROS_INFO("DIFF: %.3f", diff);
 
 

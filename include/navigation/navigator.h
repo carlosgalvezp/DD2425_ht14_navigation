@@ -45,7 +45,7 @@ class Navigator
 {
 public:
 
-    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(false), realign_timer_(ros::WallTime::now()) {}
+    Navigator() : wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), realign_timer_(ros::WallTime::now()) {}
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params, int phase)
     {
