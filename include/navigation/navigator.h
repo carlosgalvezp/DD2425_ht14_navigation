@@ -466,6 +466,7 @@ private:
         // Remove the points we have allready passed
         if(closest_index != 0)
         {
+            ROS_INFO("Purged: %u", closest_index);
             path_.erase(path_.begin(), path_.begin() + closest_index);
         }
     }
