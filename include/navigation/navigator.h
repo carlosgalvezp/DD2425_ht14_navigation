@@ -420,6 +420,7 @@ private:
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
+        ROS_INFO("Entered calculate path");
         purgePath();
 
         if(path_.size() > 20)
@@ -449,6 +450,7 @@ private:
 
     void purgePath()
     {
+         ROS_INFO("Entered Purge");
         int closest_index = 0;
         double closest_distance = -1;
         double current_distance;
@@ -480,6 +482,7 @@ private:
 
     bool timeToComputeNewPath()
     {
+         ROS_INFO("Entered time to compute path");
         if(ros::WallTime::now().toSec() - latest_path_update_time_.toSec() > seconds_until_recompute_path_)
         {
             return true;
@@ -490,6 +493,7 @@ private:
             return true;
         }
         return false;
+        ROS_INFO("Exited time to compute path");
     }
 
     void updatePathNextIteration()
