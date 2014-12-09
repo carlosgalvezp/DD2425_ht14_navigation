@@ -454,7 +454,7 @@ private:
         int closest_index = 0;
         double closest_distance = -1;
         double current_distance;
-        for(int i = 0; i < 25 || i < path_.size(); i++)
+        for(int i = 0; i < 25 && i < path_.size(); i++)
         {
             geometry_msgs::Point & point = path_[i];
             current_distance = RAS_Utils::euclidean_distance(robot_x_pos_, robot_y_pos_, point.x, point.y);
