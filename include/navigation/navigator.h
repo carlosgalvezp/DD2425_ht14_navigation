@@ -211,15 +211,11 @@ private:
         if(!going_home_){
             if(use_path_follower_) {
             calculateUnknownPath(occ_grid, cost_grid);
-                if(path_.size() == 0){
-                    going_home_ = true;
-                    system("espeak 'The bomb has been planted'");
-                }
-            }
-            else
-            {
-                // Not using wall_follower, clear the path
-                path_.clear();
+
+//                if(path_.size() == 0){
+//                    going_home_ = true;
+//                    system("espeak 'The bomb has been planted'");
+//                }
             }
         }
 
@@ -475,7 +471,7 @@ private:
 
     void calculateTimeUntilNextPath()
     {
-        ROS_INFO("!!! NEW PATH !!!");
+        ROS_ERROR("!!! NEW PATH !!!");
         latest_path_update_time_ = ros::WallTime::now();
         seconds_until_recompute_path_ = path_.size() / 50.0;
     }
