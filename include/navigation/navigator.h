@@ -20,6 +20,7 @@
 #include <stack>
 #include <queue>
 #include <math.h>
+#include <algorithm>
 
 #include <cstdlib>
 
@@ -30,7 +31,7 @@
 #define COMMAND_ALIGN                   "align"
 #define COMMAND_ALIGN_POS_DIR           "align_pos_dir"
 
-#define DANGEROUSLY_CLOSE_LIMIT             6.0
+#define DANGEROUSLY_CLOSE_LIMIT             6.5
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   5
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
@@ -282,9 +283,9 @@ private:
 
         if(use_path_follower_) {
             robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
-            std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
-            std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
-            RAS_Utils::print(strings, values);
+            //std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
+           // std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
+           // RAS_Utils::print(strings, values);
         } else
         {
             wall_follower_.run(v, w, sd);
@@ -400,7 +401,8 @@ private:
 
     geometry_msgs::Point getPointToFollow(const nav_msgs::OccupancyGrid & occ_grid)
     {
-        int best_point = 0;
+        ROS_INFO("Getting best point: %u", path_.size());
+        int best_point = -1;
         bool point_is_good = true;
         for(int i = 0; i < path_.size() && point_is_good; i++)
         {
@@ -409,10 +411,10 @@ private:
             double distance = RAS_Utils::euclidean_distance(robot_x_pos_, robot_y_pos_, point.x, point.y);
             double angle = atan2(point.y - robot_y_pos_,  point.x - robot_x_pos_);
 
-            for(int part_dist = 0; part_dist <= distance; part_dist++)
+            for(double part_dist = 0; part_dist <= distance; part_dist += 0.01)
             {
-                double x_pos = robot_x_pos_ + cos(angle) * distance;
-                double y_pos = robot_y_pos_ + sin(angle) * distance;
+                double x_pos = robot_x_pos_ + cos(angle) * part_dist;
+                double y_pos = robot_y_pos_ + sin(angle) * part_dist;
                 if(!RAS_Utils::occ_grid::isFree(occ_grid, x_pos, y_pos))
                 {
                     point_is_good = false;
@@ -423,10 +425,12 @@ private:
             {
                 best_point++;
             }
+
         }
+        best_point = best_point - 30;
         ROS_INFO("Best point: %u", best_point);
 
-        return path_[best_point];
+        return path_[std::max(best_point, std::min(8, (int)path_.size() - 1))];
     }
 
     void calculateHomePath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
@@ -469,8 +473,16 @@ private:
 
         if(timeToComputeNewPath())
         {
+            ROS_INFO("Cal unknown");
             path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
-            path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
+            ROS_INFO("path size: %u", path_.size());
+            if(path_.size() != 0) { 
+                path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
+            } else 
+            {
+                path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_);
+            }
+            ROS_INFO("path size: %u", path_.size());
             calculateTimeUntilNextPath();
         }
     }
@@ -495,9 +507,10 @@ private:
         // Remove the points we have allready passed
         if(closest_index != 0)
         {
-            ROS_INFO("Purged: %u", closest_index);
+            ROS_WARN("Purged: %u", closest_index);
             path_.erase(path_.begin(), path_.begin() + closest_index);
         }
+        ROS_INFO("Exited Purge");
     }
 
     void calculateTimeUntilNextPath()
@@ -510,7 +523,7 @@ private:
     bool timeToComputeNewPath()
     {
          ROS_INFO("Entered time to compute path");
-        if(ros::WallTime::now().toSec() - latest_path_update_time_.toSec() > seconds_until_recompute_path_)
+        if((ros::WallTime::now().toSec() - latest_path_update_time_.toSec()) > seconds_until_recompute_path_)
         {
             return true;
         }
