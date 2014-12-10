@@ -240,7 +240,7 @@ private:
 
         if(going_home_ && path_.size() < 5)
         {
-            system("espeak 'Terrorists win'");
+            system("espeak 'I am back home! Phew'");
             finished_ = true;
         }
 
@@ -384,7 +384,7 @@ private:
         {
             if(sqrt(pow(new_point.x - point.x, 2) + pow(new_point.y - point.y, 2)) < 0.1)
             {
-                system("espeak 'Switching to path following");
+//                system("espeak 'Switching to path following");
                 use_path_follower_ = true;
             }
         }
@@ -403,14 +403,14 @@ private:
 
         geometry_msgs::Point to_point = getPointToFollow(occ_grid);
 
-        std::cout << "Wanted angle: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
+//        std::cout << "Wanted angle: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
 
         return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
     }
 
     geometry_msgs::Point getPointToFollow(const nav_msgs::OccupancyGrid & occ_grid)
     {
-        ROS_INFO("Getting best point: %u", path_.size());
+//        ROS_INFO("Getting best point: %u", path_.size());
         int best_point = -1;
         bool point_is_good = true;
         for(int i = 0; i < path_.size() && point_is_good; i++)
@@ -464,7 +464,7 @@ private:
 
         }
         best_point = best_point - 25;
-        ROS_INFO("Best point: %u", best_point);
+//        ROS_INFO("Best point: %u", best_point);
 
         return path_[std::max(best_point, std::min(8, (int)path_.size() - 1))];
     }
@@ -487,7 +487,7 @@ private:
 
     void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
-        ROS_INFO("Entered calculate path");
+//        ROS_INFO("Entered calculate path");
         purgePath();
 
         if(path_.size() > 20)
@@ -512,21 +512,21 @@ private:
 
             ros::WallTime temp_time = ros::WallTime::now();
             path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
-            ROS_INFO("path size: %u", path_.size());
+//            ROS_INFO("path size: %u", path_.size());
             if(path_.size() != 0) { 
                 path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
             } else 
             {
                 path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_);
             }
-            std::cout << "New Path: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
+//            std::cout << "New Path: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
             calculateTimeUntilNextPath();
         }
     }
 
     void purgePath()
     {
-         ROS_INFO("Entered Purge");
+//         ROS_INFO("Entered Purge");
         int closest_index = 0;
         double closest_distance = -1;
         double current_distance;
@@ -544,22 +544,22 @@ private:
         // Remove the points we have allready passed
         if(closest_index != 0)
         {
-            ROS_WARN("Purged: %u", closest_index);
+//            ROS_WARN("Purged: %u", closest_index);
             path_.erase(path_.begin(), path_.begin() + closest_index);
         }
-        ROS_INFO("Exited Purge");
+//        ROS_INFO("Exited Purge");
     }
 
     void calculateTimeUntilNextPath()
     {
-        ROS_ERROR("!!! NEW PATH !!!");
+//        ROS_ERROR("!!! NEW PATH !!!");
         latest_path_update_time_ = ros::WallTime::now();
         seconds_until_recompute_path_ = path_.size() / 50.0;
     }
 
     bool timeToComputeNewPath()
     {
-         ROS_INFO("Entered time to compute path");
+//         ROS_INFO("Entered time to compute path");
         if((ros::WallTime::now().toSec() - latest_path_update_time_.toSec()) > seconds_until_recompute_path_)
         {
             return true;
@@ -570,7 +570,7 @@ private:
             return true;
         }
         return false;
-        ROS_INFO("Exited time to compute path");
+//        ROS_INFO("Exited time to compute path");
     }
 
     void updatePathNextIteration()
