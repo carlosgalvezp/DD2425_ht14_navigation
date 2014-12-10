@@ -31,7 +31,7 @@
 #define COMMAND_ALIGN                   "align"
 #define COMMAND_ALIGN_POS_DIR           "align_pos_dir"
 
-#define DANGEROUSLY_CLOSE_LIMIT             6.5
+#define DANGEROUSLY_CLOSE_LIMIT             7.0
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   5
 #define DANGEROUSLY_CLOSE_BACKUP_SPEED      -0.1
 
@@ -83,6 +83,9 @@ public:
             ROS_ERROR("adc_msg or odo_msg or map_msg or map_cost_msg are null!");
             return;
         }
+
+        ros::WallTime temp_time = ros::WallTime::now();
+
 
 
         if(finished_) {
@@ -136,6 +139,8 @@ public:
             activateStackedCommand(v, w);
 
         }
+
+        std::cout << "total: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
     }
 
     void setRobotFrontPos()
@@ -388,6 +393,8 @@ private:
 
     double getWantedAngle(const nav_msgs::OccupancyGrid & occ_grid)
     {
+
+        ros::WallTime temp_time = ros::WallTime::now();
         if(path_.size() <= 0)
         {
             // Should not happen, but for safety so we dont throw error;
@@ -395,6 +402,8 @@ private:
         }
 
         geometry_msgs::Point to_point = getPointToFollow(occ_grid);
+
+        std::cout << "Wanted angle: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
 
         return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
     }
@@ -415,11 +424,38 @@ private:
             {
                 double x_pos = robot_x_pos_ + cos(angle) * part_dist;
                 double y_pos = robot_y_pos_ + sin(angle) * part_dist;
+
                 if(!RAS_Utils::occ_grid::isFree(occ_grid, x_pos, y_pos))
                 {
                     point_is_good = false;
                     break;
                 }
+                std::vector<double> extra_x_points;
+                std::vector<double> extra_y_points;
+                extra_x_points.push_back(-0.04);
+                extra_y_points.push_back(-0.04);
+
+                extra_x_points.push_back(-0.04);
+                extra_y_points.push_back(0.04);
+
+                extra_x_points.push_back(0.04);
+                extra_y_points.push_back(-0.04);
+
+                extra_x_points.push_back(0.04);
+                extra_y_points.push_back(0.04);
+
+                // Thick "thicker line"
+                for(double extra_x : extra_x_points)
+                {
+                    for(double extra_y : extra_y_points)
+                    {
+                        if(!RAS_Utils::occ_grid::isFree(occ_grid, x_pos + extra_x, y_pos + extra_y))
+                        {
+                            point_is_good = false;
+                        }
+                    }
+                }
+
             }
             if(point_is_good)
             {
@@ -427,7 +463,7 @@ private:
             }
 
         }
-        best_point = best_point - 30;
+        best_point = best_point - 25;
         ROS_INFO("Best point: %u", best_point);
 
         return path_[std::max(best_point, std::min(8, (int)path_.size() - 1))];
@@ -473,7 +509,8 @@ private:
 
         if(timeToComputeNewPath())
         {
-            ROS_INFO("Cal unknown");
+
+            ros::WallTime temp_time = ros::WallTime::now();
             path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
             ROS_INFO("path size: %u", path_.size());
             if(path_.size() != 0) { 
@@ -482,7 +519,7 @@ private:
             {
                 path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_);
             }
-            ROS_INFO("path size: %u", path_.size());
+            std::cout << "New Path: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
             calculateTimeUntilNextPath();
         }
     }
