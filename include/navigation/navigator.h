@@ -46,7 +46,7 @@ class Navigator
 {
 public:
 
-    Navigator() : localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), realign_timer_(ros::WallTime::now())
+    Navigator() : localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), localize_timer_(ros::WallTime::now())
     {
         latest_path_update_time_ = ros::WallTime::now();
     }
