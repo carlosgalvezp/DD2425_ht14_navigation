@@ -167,5 +167,8 @@ include_directories(${EIGEN_INCLUDE_DIRS})
 # catkin_add_nosetests(test)
 
 file (GLOB SOURCES src/*.cpp include/${PROJECT_NAME}/*.h)
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME} src/apps/navigation_node.cpp ${SOURCES})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+add_executable(display_global_path_node src/apps/display_global_path_node.cpp ${SOURCES})
+target_link_libraries(display_global_path_node ${catkin_LIBRARIES})

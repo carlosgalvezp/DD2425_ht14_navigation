@@ -36,22 +36,22 @@ public:
     {
         // compute angular velocity
         double diff = wanted_angle - current_angle;
-      //  ROS_INFO("DIFF: %.3f Current_angle: %.3f sWanted: %.3f", diff, current_angle, wanted_angle);
+//        ROS_ERROR("DIFF: %.3f Current_angle: %.3f sWanted: %.3f", diff, current_angle, wanted_angle);
 
         diff = RAS_Utils::normalize_angle( diff );
-       // ROS_INFO("DIFF: %.3f", diff);
+//        ROS_ERROR("DIFF: %.3f", diff);
 
 
-/*
-        if(diff > M_PI_4)
+
+        if(diff > M_PI_2)
         {
-            diff = M_PI_4;
+            diff = M_PI_2;
         }
-        if(diff < -M_PI_4)
+        if(diff < -M_PI_2)
         {
-            diff = -M_PI_4;
+            diff = -M_PI_2;
         }
-        */
+        
       //  ROS_INFO("DIFF: %.3f", diff);
 
 

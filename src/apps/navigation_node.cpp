@@ -184,7 +184,11 @@ void Navigation::run()
             ROS_INFO("%i", results.size());
         }
         */
-
+        double max_w = 1.5;
+        if (fabs(w) > max_w)
+        {
+            w = max_w * RAS_Utils::sign(w);
+        }
 
         // ** Publish
         geometry_msgs::Twist msg;
