@@ -27,7 +27,7 @@
 
 
 
-  <node pkg="navigation" type="navigation" name="navigation" output="screen">	
+  <node pkg="navigation" type="navigation" name="navigation" output="screen"/>	
+  <node pkg="navigation" type="path_finder_node" name="path_finder_node" output="screen"/>	
 
-  </node>
 </launch>

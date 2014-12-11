@@ -11,7 +11,7 @@
 #include <vector>
 
 #define QUEUE_SIZE      1
-#define PUBLISH_RATE    10
+#define PUBLISH_RATE    50
 
 class PathFinderNode : rob::BasicNode
 {
@@ -79,7 +79,7 @@ private:
 
     void setRobotFrontPos()
     {
-        double distance_ahead = 0.09;
+        double distance_ahead = 0.15;
         robot_front_x_pos_ = robot_x_pos_ + cos(robot_angle_) * distance_ahead;
         robot_front_y_pos_ = robot_y_pos_ + sin(robot_angle_) * distance_ahead;
     }
@@ -149,7 +149,6 @@ private:
        // if(timeToComputeNewPath() || path_.size() == 0)
        // {
             path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
-
             if(path_.size() != 0) {
                 path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
             }

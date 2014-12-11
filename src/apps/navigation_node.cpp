@@ -258,13 +258,15 @@ void Navigation::objCallback(const std_msgs::Bool::ConstPtr& msg)
 
 void Navigation::pathCallback(const visualization_msgs::MarkerArray::ConstPtr& msg)
 {
-    path_data_ = msg;
+    if (msg->markers[0].ns == "Path")
+    {
+        path_data_ = msg;
+    }
 }
 
 
 bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp)
 {
-    ROS_INFO("Navigation receives command: %ld", req.command);
     mode_ = req.command;
     resp.result = 1;
     return true;

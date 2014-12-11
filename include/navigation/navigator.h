@@ -89,19 +89,21 @@ public:
             return;
         }
 
-        convertPathMarkersToPoint(*path_msg);
+        path_ = path_msg->markers[0].points;
         purgePath();
 
      //   ros::WallTime temp_time = ros::WallTime::now();
-
-        if(going_home_ && going_home_spoken_)
+        
+        if(going_home_ && !going_home_spoken_)
         {
+            ROS_ERROR("We are now going home");
             system("espeak 'I am going home now! Hopefully'");
             going_home_spoken_ = true;
         }
 
 
         if(finished_) {
+            ROS_ERROR("We are back home");
             system("espeak 'I am back home!'");
             v = 0;
             w = 0;
@@ -186,22 +188,7 @@ private:
         std::string command;
         std::vector<int> args;
         CommandInfo(std::string command, std::vector<int> args = std::vector<int>()) : command(command), args(args) {}
-    };
-
-    void convertPathMarkersToPoint(const visualization_msgs::MarkerArray & path_points)
-    {
-        visualization_msgs::Marker marker;
-        path_.clear();
-        for(int i = 0; i < path_points.markers.size(); i ++)
-        {
-            geometry_msgs::Point point;
-            marker = path_points.markers[i];
-            point.x = marker.pose.position.x;
-            point.y = marker.pose.position.y;
-
-            path_.push_back(point);
-        }
-    }
+    }; 
 
     RAS_Utils::sensors::SensorDistances sd;
     double robot_x_pos_, robot_y_pos_;
