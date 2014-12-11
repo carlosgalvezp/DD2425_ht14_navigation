@@ -172,3 +172,6 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 add_executable(display_global_path_node src/apps/display_global_path_node.cpp ${SOURCES})
 target_link_libraries(display_global_path_node ${catkin_LIBRARIES})
+
+add_executable(path_finder_node src/apps/path_finder_node.cpp ${SOURCES})
+target_link_libraries(path_finder_node ${catkin_LIBRARIES})

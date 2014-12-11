@@ -36,14 +36,14 @@ private:
     // ** Publishers and subscribers
     ros::Publisher twist_pub_;
     ros::Publisher pose2d_pub_;
-    ros::Publisher path_pub_;
     ros::Publisher localize_pub_;
+    ros::Publisher point_pub_;
 
     ros::Subscriber adc_sub_;
     ros::Subscriber odo_sub_;
     ros::Subscriber obj_sub_;
     ros::Subscriber map_sub_;
-    ros::Subscriber map_cost_sub_;
+    ros::Subscriber path_sub_;
 
     // ** Services
     ros::ServiceClient srv_out_;
@@ -53,8 +53,8 @@ private:
     void adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg);
     void odoCallback(const geometry_msgs::Pose2D::ConstPtr& msg);
     void objCallback(const std_msgs::Bool::ConstPtr& msg);
+    void pathCallback(const visualization_msgs::MarkerArray::ConstPtr& msg);
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
-    void mapCostCallback(const std_msgs::Int64MultiArray::ConstPtr &msg);
     // Service callback
     bool srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp);
 
@@ -74,8 +74,8 @@ private:
     ras_arduino_msgs::ADConverter::ConstPtr adc_data_;
     geometry_msgs::Pose2D::ConstPtr odo_data_;
     std_msgs::Bool::ConstPtr obj_data_;
+    visualization_msgs::MarkerArray::ConstPtr path_data_;
     nav_msgs::OccupancyGrid::ConstPtr map_data_;
-    std_msgs::Int64MultiArray::ConstPtr map_cost_data_;
 
     int phase_;
     std::queue<geometry_msgs::Point> getObjectsToRetrieve();
@@ -101,15 +101,15 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
 
     // Publisher
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
-    path_pub_  = n.advertise<visualization_msgs::MarkerArray>(TOPIC_MARKERS, 1);
     localize_pub_ = n.advertise<std_msgs::Bool>(TOPIC_LOCALIZATION, 1);
+    point_pub_ = n.advertise<geometry_msgs::Point>(TOPIC_PATH_FINDER_POINT,1);
 
     // Subscriber
     adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
     odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallback, this);
     obj_sub_ = n.subscribe(TOPIC_OBSTACLE, 1, &Navigation::objCallback, this);
+    path_sub_  = n.subscribe(TOPIC_MARKERS, 1, &Navigation::pathCallback, this);
     map_sub_ = n.subscribe(TOPIC_MAP_OCC_GRID_THICK, 1, &Navigation::mapCallback, this);
-    map_cost_sub_ = n.subscribe(TOPIC_MAP_COST, 1, &Navigation::mapCostCallback, this);
     // Service callback
     srv_in_ = n.advertiseService(SRV_NAVIGATION_IN, &Navigation::srvCallback, this);
 
@@ -162,7 +162,7 @@ void Navigation::run()
 
             case RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW:
 //                ROS_INFO("[Navigation] Wall following");
-                navigator_.computeCommands(odo_data_, adc_data_, obj_data_, map_data_, map_cost_data_, v, w);
+                navigator_.computeCommands(map_data_, odo_data_, adc_data_, obj_data_, path_data_, v, w);
                 break;
 
             case RAS_Names::Navigation_Modes::NAVIGATION_GO_OBJECT:
@@ -196,8 +196,8 @@ void Navigation::run()
         // ** Publish
         geometry_msgs::Twist msg;
 
-        displayPathRviz(navigator_.getPath());
-
+     //   displayPathRviz(navigator_.getPath());
+//
 
         msg.linear.x = v;
         msg.linear.y = 0.0;
@@ -208,6 +208,14 @@ void Navigation::run()
         msg.angular.z = w;
 
         twist_pub_.publish(msg);
+
+        if(navigator_.isGoingHome())
+        {
+            geometry_msgs::Point msg;
+            msg.x = 0;
+            msg.y = 0;
+            point_pub_.publish(msg);
+        }
 
 /*
         if(navigator_.shouldLocalize() )
@@ -228,6 +236,11 @@ void Navigation::run()
     std::cout << "Exiting...\n";
 }
 
+void Navigation::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+{
+    map_data_ = msg;
+}
+
 void Navigation::adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg)
 {
     adc_data_ = msg;
@@ -243,15 +256,11 @@ void Navigation::objCallback(const std_msgs::Bool::ConstPtr& msg)
     obj_data_ = msg;
 }
 
-void Navigation::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+void Navigation::pathCallback(const visualization_msgs::MarkerArray::ConstPtr& msg)
 {
-    map_data_ = msg;
+    path_data_ = msg;
 }
 
-void Navigation::mapCostCallback(const std_msgs::Int64MultiArray::ConstPtr& msg)
-{
-    map_cost_data_ = msg;
-}
 
 bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::Command::Response &resp)
 {
@@ -259,52 +268,6 @@ bool Navigation::srvCallback(ras_srv_msgs::Command::Request &req, ras_srv_msgs::
     mode_ = req.command;
     resp.result = 1;
     return true;
-}
-
-void Navigation::displayPathRviz(const std::vector<geometry_msgs::Point> &path)
-{
-    visualization_msgs::MarkerArray msg_array;
-    msg_array.markers.resize(1);
-
-    visualization_msgs::Marker &msg = msg_array.markers[0];
-    msg.points.resize(path.size());
-
-    msg.header.frame_id = COORD_FRAME_WORLD;
-    msg.header.stamp = ros::Time();
-    msg.ns = "Path";
-    msg.id = 0;
-    msg.action = visualization_msgs::Marker::ADD;
-
-    // This is not required for LINE
-//    tf::Quaternion q;
-//    q.setRPY(0,0,theta);
-//    marker_arrow.pose.position.x = x;
-//    marker_arrow.pose.position.y = y;
-//    marker_arrow.pose.position.z = 0.05;
-
-//    marker_arrow.pose.orientation.x = q.x();
-//    marker_arrow.pose.orientation.y = q.y();
-//    marker_arrow.pose.orientation.z = q.z();
-//    marker_arrow.pose.orientation.w = q.w();
-
-    msg.scale.x = 0.05;
-    msg.scale.y = 0.05;
-    msg.scale.z = 0.0;
-
-
-    msg.color.a = 1.0;
-    msg.color.r = 1.0;
-    msg.color.g = 0.0;
-    msg.color.b = 0.0;
-    msg.type = visualization_msgs::Marker::LINE_STRIP;
-
-//    ROS_INFO("%u", path.size());
-    for(std::size_t i = 0; i < path.size(); ++i)
-    {
-        msg.points[i] = path[i];
-    }
-
-    path_pub_.publish(msg_array);
 }
 
 std::queue<geometry_msgs::Point> Navigation::getObjectsToRetrieve()

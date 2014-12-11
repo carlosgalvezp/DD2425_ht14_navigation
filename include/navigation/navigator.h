@@ -5,6 +5,7 @@
 #include <geometry_msgs/Pose2D.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <std_msgs/Int64MultiArray.h>
+#include <visualization_msgs/MarkerArray.h>
 
 #include <ras_utils/ras_utils.h>
 #include <ras_utils/occupancy_map_utils.h>
@@ -48,7 +49,7 @@ class Navigator
 {
 public:
 
-    Navigator() : temp_var(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), localize_timer_(ros::WallTime::now())
+    Navigator() : going_home_spoken_(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), localize_timer_(ros::WallTime::now())
     {
         latest_path_update_time_ = ros::WallTime::now();
     }
@@ -73,26 +74,35 @@ public:
         }
     }
 
-    void computeCommands(const geometry_msgs::Pose2D::ConstPtr &odo_msg,
+    void computeCommands(const nav_msgs::OccupancyGrid::ConstPtr & map_msg,
+                                         const geometry_msgs::Pose2D::ConstPtr &odo_msg,
                                          const ras_arduino_msgs::ADConverter::ConstPtr &adc_msg,
                                          const std_msgs::Bool::ConstPtr &obj_msg,
-                                         const nav_msgs::OccupancyGrid::ConstPtr & map_msg,
-                                         const std_msgs::Int64MultiArray::ConstPtr & map_cost_msg,
+                                         const visualization_msgs::MarkerArray::ConstPtr & path_msg,
                                          double &v, double &w)
     {
 
 
-        if (adc_msg == nullptr || odo_msg == nullptr || map_msg == nullptr || map_cost_msg == nullptr)
+        if (adc_msg == nullptr || odo_msg == nullptr || path_msg == nullptr || map_msg == nullptr)
         {
-            ROS_ERROR("adc_msg or odo_msg or map_msg or map_cost_msg are null!");
+            ROS_ERROR("adc_msg or odo_msg or path_msg are null!");
             return;
         }
 
+        convertPathMarkersToPoint(*path_msg);
+        purgePath();
+
      //   ros::WallTime temp_time = ros::WallTime::now();
 
+        if(going_home_ && going_home_spoken_)
+        {
+            system("espeak 'I am going home now! Hopefully'");
+            going_home_spoken_ = true;
+        }
 
 
         if(finished_) {
+            system("espeak 'I am back home!'");
             v = 0;
             w = 0;
             return;
@@ -116,7 +126,6 @@ public:
             robot_x_pos_ = odo_msg->x;
             robot_y_pos_ = odo_msg->y;
             robot_angle_ = odo_msg->theta;
-            setRobotFrontPos();
         }
 
         //  If something is currently running, let it work
@@ -127,10 +136,10 @@ public:
         {
             // We have no more commands to run. Run logic to add commands
             if(phase_ == FIRST_PHASE) {
-                explorePhase(v, w, *map_msg, *map_cost_msg);
+                explorePhase(v, w, *map_msg);
             } else if(phase_ == SECOND_PHASE)
             {
-                retrieveObjects(v, w, *map_msg, *map_cost_msg);
+                retrieveObjects(v, w, *map_msg);
             }
         }
 
@@ -145,12 +154,7 @@ public:
         //std::cout << "total: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
     }
 
-    void setRobotFrontPos()
-    {
-        double distance_ahead = 0.09;
-        robot_front_x_pos_ = robot_x_pos_ + cos(robot_angle_) * distance_ahead;
-        robot_front_y_pos_ = robot_y_pos_ + sin(robot_angle_) * distance_ahead;
-    }
+
 
     std::vector<geometry_msgs::Point> & getPath()
     {
@@ -171,6 +175,11 @@ public:
         localize_timer_ = ros::WallTime::now();
     }
 
+    bool isGoingHome()
+    {
+        return going_home_;
+    }
+
 private:
 
     struct CommandInfo {
@@ -179,8 +188,23 @@ private:
         CommandInfo(std::string command, std::vector<int> args = std::vector<int>()) : command(command), args(args) {}
     };
 
+    void convertPathMarkersToPoint(const visualization_msgs::MarkerArray & path_points)
+    {
+        visualization_msgs::Marker marker;
+        path_.clear();
+        for(int i = 0; i < path_points.markers.size(); i ++)
+        {
+            geometry_msgs::Point point;
+            marker = path_points.markers[i];
+            point.x = marker.pose.position.x;
+            point.y = marker.pose.position.y;
+
+            path_.push_back(point);
+        }
+    }
+
     RAS_Utils::sensors::SensorDistances sd;
-    double robot_x_pos_, robot_y_pos_, robot_front_x_pos_, robot_front_y_pos_;
+    double robot_x_pos_, robot_y_pos_;
     double robot_angle_;
     bool vision_detected_obj_in_front_;
 
@@ -199,8 +223,8 @@ private:
     bool wantedDistanceRecentlySet_;
 
     bool going_home_;
+    bool going_home_spoken_;
     bool finished_;
-    bool use_path_follower_;
 
     std::vector<geometry_msgs::Point> wall_follower_points_;
 
@@ -228,43 +252,26 @@ private:
     ros::WallTime temp_time;
 
 
-    void explorePhase(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
+    void explorePhase(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
 
-        if(!going_home_){
-            if(use_path_follower_) {
-            calculateUnknownPath(occ_grid, cost_grid);
-            if(path_.size() == 0 && RAS_Utils::occ_grid::getValue(occ_grid, robot_x_pos_, robot_y_pos_) == 0)
+        if(!going_home_)
+        {
+            if(path_.size() == 0)
             {
-                ROS_ERROR("PATH SIZE: %lu", path_.size());
-                ROS_WARN("Value: %u", RAS_Utils::occ_grid::getValue(occ_grid, robot_x_pos_, robot_y_pos_)); 
-            }      
-                if(path_.size() == 0 && RAS_Utils::occ_grid::isFree(occ_grid, robot_x_pos_, robot_y_pos_)){
-                    going_home_ = true;
-                    //v = 0;
-                    //w = 0;
-                    //system("espeak 'I am going home now! Hopefully'");
-                }
+                going_home_ = true;
+                v = 0;
+                w = 0;
+                return;
             }
         }
 
-        /*
-        if(shouldLocalize())
-        {
-            command_stack_.push(CommandInfo(COMMAND_ALIGN_POS_DIR));
-            command_stack_.push(CommandInfo(COMMAND_ALIGN));
-            command_stack_.push(CommandInfo(COMMAND_STOP));
-            return;
-        }*/
+        //if(going_home_) {
+        //    calculateHomePath(occ_grid, cost_grid);
+        //}
 
-        if(going_home_) {
-            calculateHomePath(occ_grid, cost_grid);
-        }
-
-        if(going_home_ && path_.size() < 15)
+        if(going_home_ && isCloseToHome())
         {
-            system("espeak 'I am back home!'");
-            finished_ = true;
             v = 0;
             w = 0;
             return;
@@ -273,13 +280,9 @@ private:
 
         if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
         {
-            if(!use_path_follower_)
-            {
-                testIfWeShouldActivatePathFollower();
-            }
-            updatePathNextIteration();
+          //  updatePathNextIteration();
             // ALWAYS check this first, this is our most important check for not hitting a wall
-            wantedDistanceRecentlySet_ = false;
+          //  wantedDistanceRecentlySet_ = false;
             // Stop the robot. Then back up some distance
             ROS_ERROR("!!! Dangerously close to wheels !!!");
 
@@ -295,16 +298,12 @@ private:
 
         if(isWallCloseInFront())
         {
-            if(!use_path_follower_)
-            {
-                testIfWeShouldActivatePathFollower();
-            }
 
-            if(!use_path_follower_ || fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+            if(fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
             {
-                updatePathNextIteration();
+               // updatePathNextIteration();
                 // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
-                wantedDistanceRecentlySet_ = false;
+               // wantedDistanceRecentlySet_ = false;
                 // Stop the robot! And afterwards, start the rotating!
                 turnCommandCombo();
                 return;
@@ -312,32 +311,12 @@ private:
         } 
 
 
-        if(use_path_follower_) {
-            robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
-            //std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
-           // std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
-           // RAS_Utils::print(strings, values);
-        } else
-        {
-            wall_follower_.run(v, w, sd);
-        }
+        robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
     }
 
-    bool temp_var;
-
-    void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
+    void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
         /*
-        if(shouldLocalize() || temp_var)
-        {
-            temp_var = true;
-            v = 0;
-            w = 0;
-            return;
-        }
-        */
-
-
         calculatePathToPoint(occ_grid, cost_grid, current_object_point_.x, current_object_point_.y);
 
         if(currentObjectHasBeenRetrieved())
@@ -379,7 +358,7 @@ private:
         if(isWallCloseInFront())
         {
 
-            if(!use_path_follower_ || fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
+            if(fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
             {
                 // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
                 wantedDistanceRecentlySet_ = false;
@@ -393,6 +372,7 @@ private:
         // std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
         // std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
         // RAS_Utils::print(strings, values);
+        */
     }
 
 
@@ -405,22 +385,6 @@ private:
         }
 
         return false;
-    }
-
-    void testIfWeShouldActivatePathFollower()
-    {
-        geometry_msgs::Point new_point;
-        new_point.x = robot_x_pos_;
-        new_point.y = robot_y_pos_;
-        for(geometry_msgs::Point point : wall_follower_points_)
-        {
-            if(sqrt(pow(new_point.x - point.x, 2) + pow(new_point.y - point.y, 2)) < 0.1)
-            {
-//                system("espeak 'Switching to path following");
-                use_path_follower_ = true;
-            }
-        }
-        wall_follower_points_.push_back(new_point);
     }
 
     double getWantedAngle(const nav_msgs::OccupancyGrid & occ_grid)
@@ -508,50 +472,11 @@ private:
     void calculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid, double to_x, double to_y)
     {
         purgePath();
-        if(timeToComputeNewPath())
-        {
+      //  if(timeToComputeNewPath())
+    //    {
             path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, to_x, to_y);
             calculateTimeUntilNextPath();
-        }
-    }
-
-
-    void calculateUnknownPath(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
-    {
-//        ROS_INFO("Entered calculate path");
-        purgePath();
-
-        if(path_.size() > 20)
-        {
-            // Pretty long to the unknown area, no need to update where to go, just how to go there.
-
-            geometry_msgs::Point to_point = path_[path_.size() - 1];
-            if(RAS_Utils::occ_grid::isUnknown(occ_grid, to_point.x, to_point.y))
-            {
-                // But also only do this if the point is still a unknown point
-                calculatePathToPoint(occ_grid, cost_grid, to_point.x, to_point.y);
-                if(path_.size() > 0) {
-                    // We only accept this path if we actually could get there. Otherwise contrinue and find a new path
-                    return;
-                }
-            }
-        }
-
-
-        if(timeToComputeNewPath())
-        {
-
-            path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
-
-            if(path_.size() != 0) { 
-                path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
-            } 
-            if(path_.size() == 0)
-            {
-                path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_);
-            }
-            calculateTimeUntilNextPath();
-        }
+      //  }
     }
 
     void purgePath()
@@ -587,21 +512,7 @@ private:
         seconds_until_recompute_path_ = path_.size() / 50.0;
     }
 
-    bool timeToComputeNewPath()
-    {
-//         ROS_INFO("Entered time to compute path");
-        if((ros::WallTime::now().toSec() - latest_path_update_time_.toSec()) > seconds_until_recompute_path_)
-        {
-            return true;
-        }
 
-        if(path_.size() < 15)
-        {
-            return true;
-        }
-        return false;
-//        ROS_INFO("Exited time to compute path");
-    }
 
     void updatePathNextIteration()
     {
@@ -721,6 +632,11 @@ private:
 
     bool isWallCloseInFront( ) {
         return sd.front_ < MAX_DIST_FRONT_WALL || vision_detected_obj_in_front_;
+    }
+
+    bool isCloseToHome()
+    {
+        return (fabs(robot_x_pos_) < 0.15 && fabs(robot_y_pos_) < 0.15);
     }
 
 };
