@@ -49,7 +49,7 @@ class Navigator
 {
 public:
 
-    Navigator() : going_home_spoken_(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), localize_timer_(ros::WallTime::now())
+    Navigator() : looking_at_object_(false), going_home_spoken_(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), localize_timer_(ros::WallTime::now())
     {
         latest_path_update_time_ = ros::WallTime::now();
     }
@@ -156,6 +156,27 @@ public:
         //std::cout << "total: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
     }
 
+    void objectDetected(const geometry_msgs::Point & object_point)
+    {
+        for(geometry_msgs::Point & old_point : visited_object_locations)
+        {
+            if(RAS_Utils::euclidean_distance(old_point.x, old_point.y, object_point.x, object_point.y) < 0.15)
+            {
+                // We have already seen this object... I think
+                return;
+            }
+        }
+
+        // New object to look at!
+        looking_at_object_ = true;
+        visited_object_locations.push_back(object_point);
+
+        double distance = RAS_Utils::euclidean_distance(robot_x_pos_, robot_y_pos_, object_point.x, object_point.y) - 0.1;
+        double angle = atan2(object_point.y - robot_y_pos_, object_point.x - robot_x_pos_);
+
+        object_to_look_at_.x = robot_x_pos_ + cos(angle)*distance;
+        object_to_look_at_.y = robot_y_pos_ + sin(angle)*distance;
+    }
 
 
     std::vector<geometry_msgs::Point> & getPath()
@@ -180,6 +201,16 @@ public:
     bool isGoingHome()
     {
         return going_home_;
+    }
+
+    bool lookingAtObject()
+    {
+        return looking_at_object_;
+    }
+
+    const geometry_msgs::Point & getObjectToLookAt()
+    {
+        return object_to_look_at_;
     }
 
 private:
@@ -227,6 +258,11 @@ private:
     std::queue<geometry_msgs::Point> objects_to_retrieve_;
     geometry_msgs::Point current_object_point_;
 
+    std::vector<geometry_msgs::Point> visited_object_locations;
+    geometry_msgs::Point object_to_look_at_;
+
+    bool looking_at_object_;
+
     void turnCommandCombo()
     {
         command_stack_.push(CommandInfo(COMMAND_STOP));
@@ -263,6 +299,15 @@ private:
             w = 0;
             return;
         }
+
+        if(looking_at_object_)
+        {
+            if(path_.size() < 15)
+            {
+                looking_at_object_ = false;
+            }
+        }
+
 
 
         if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)

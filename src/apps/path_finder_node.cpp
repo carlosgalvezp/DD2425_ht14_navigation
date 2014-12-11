@@ -44,7 +44,6 @@ public:
                 }
 
                 displayPathRviz(path_);
-
             }
 
 
@@ -86,8 +85,14 @@ private:
 
     void pointCallback(const geometry_msgs::Point::ConstPtr& msg)
     {
-        unknown_searching_ = false;
-        point_data_ = msg;
+        if(msg->z < -0.1)
+        {
+            unknown_searching_ = true;
+        } else
+        {
+            unknown_searching_ = false;
+            point_data_ = msg;
+        }
     }
 
     void odoCallback(const geometry_msgs::Pose2D::ConstPtr& msg)

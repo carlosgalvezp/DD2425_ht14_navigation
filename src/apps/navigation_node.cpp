@@ -52,7 +52,7 @@ private:
     // ** Callback func when adc data recieved
     void adcCallback(const ras_arduino_msgs::ADConverter::ConstPtr& msg);
     void odoCallback(const geometry_msgs::Pose2D::ConstPtr& msg);
-    void objCallback(const std_msgs::Bool::ConstPtr& msg);
+    void objCallback(const geometry_msgs::Point::ConstPtr& msg);
     void pathCallback(const visualization_msgs::MarkerArray::ConstPtr& msg);
     void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
     // Service callback
@@ -107,9 +107,9 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
     // Subscriber
     adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
     odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallback, this);
-    obj_sub_ = n.subscribe(TOPIC_OBSTACLE, 1, &Navigation::objCallback, this);
     path_sub_  = n.subscribe(TOPIC_MARKERS, 1, &Navigation::pathCallback, this);
     map_sub_ = n.subscribe(TOPIC_MAP_OCC_GRID_THICK, 1, &Navigation::mapCallback, this);
+    obj_sub_ = n.subscribe(TOPIC_OBJECT_AS_OBSTACLE, 1, &Navigation::objCallback, this);
     // Service callback
     srv_in_ = n.advertiseService(SRV_NAVIGATION_IN, &Navigation::srvCallback, this);
 
@@ -194,27 +194,40 @@ void Navigation::run()
         }
 
         // ** Publish
-        geometry_msgs::Twist msg;
+        {
+            geometry_msgs::Twist msg;
 
-     //   displayPathRviz(navigator_.getPath());
-//
+         //   displayPathRviz(navigator_.getPath());
+    //
 
-        msg.linear.x = v;
-        msg.linear.y = 0.0;
-        msg.linear.z = 0.0;
+            msg.linear.x = v;
+            msg.linear.y = 0.0;
+            msg.linear.z = 0.0;
 
-        msg.angular.x = 0.0;
-        msg.angular.y = 0.0;
-        msg.angular.z = w;
+            msg.angular.x = 0.0;
+            msg.angular.y = 0.0;
+            msg.angular.z = w;
 
-        twist_pub_.publish(msg);
+            twist_pub_.publish(msg);
+        }
 
-        if(navigator_.isGoingHome())
         {
             geometry_msgs::Point msg;
-            msg.x = 0;
-            msg.y = 0;
-            point_pub_.publish(msg);
+            if(navigator_.isGoingHome())
+            {
+                msg.x = 0;
+                msg.y = 0;
+                point_pub_.publish(msg);
+
+            } else if(navigator_.lookingAtObject())
+            {
+                msg = navigator_.getObjectToLookAt();
+                point_pub_.publish(msg);
+            } else
+            {
+                // look for unknown
+                msg.z = -1;
+            }
         }
 
 /*
@@ -251,9 +264,9 @@ void Navigation::odoCallback(const geometry_msgs::Pose2D::ConstPtr& msg)
     odo_data_ = msg;
 }
 
-void Navigation::objCallback(const std_msgs::Bool::ConstPtr& msg)
+void Navigation::objCallback(const geometry_msgs::Point::ConstPtr& msg)
 {
-    obj_data_ = msg;
+    navigator_.objectDetected(*msg);
 }
 
 void Navigation::pathCallback(const visualization_msgs::MarkerArray::ConstPtr& msg)
