@@ -71,7 +71,7 @@ void DisplayGlobalPath::readPath(const std::string &file_path, std::vector<geome
         geometry_msgs::Point new_point;
         new_point.x = x;
         new_point.y = y;
-        new_point.z = 0.5;
+        new_point.z = 0.05;
         if(fabs(x) > 0.001 || fabs(y) > 0.001) {
             // We skip the start and end points that are (0,0)
             global_path.push_back(new_point);

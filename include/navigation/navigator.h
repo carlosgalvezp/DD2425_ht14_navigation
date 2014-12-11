@@ -46,11 +46,13 @@ class Navigator
 {
 public:
 
-    Navigator() : seconds_until_recompute_path_(0), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), realign_timer_(ros::WallTime::now()) {}
+    Navigator() : seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), realign_timer_(ros::WallTime::now()) 
+    {
+        latest_path_update_time_ = ros::WallTime::now();
+    }
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params, int phase)
     {
-        wall_follower_.setParams(wf_params);
         robot_turner_.setParams(rt_params);
         robot_angle_follower_.setParams(raf_params);
         phase_ = phase;
@@ -84,7 +86,7 @@ public:
             return;
         }
 
-        ros::WallTime temp_time = ros::WallTime::now();
+     //   ros::WallTime temp_time = ros::WallTime::now();
 
 
 
@@ -133,14 +135,12 @@ public:
 
         if(command_stack_.size() != 0)
         {
-            // Since we are doing a special command, we can reset the wall wall followers distance value
-             wall_follower_.resetWantedDistance();
             // This should always be the case, but just to make sure.
             activateStackedCommand(v, w);
 
-        }
+        } 
 
-        std::cout << "total: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
+        //std::cout << "total: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
     }
 
     void setRobotFrontPos()
@@ -217,11 +217,15 @@ private:
         if(!going_home_){
             if(use_path_follower_) {
             calculateUnknownPath(occ_grid, cost_grid);
-
-//                if(path_.size() == 0){
-//                    going_home_ = true;
-//                    system("espeak 'The bomb has been planted'");
-//                }
+            if(path_.size() == 0 && RAS_Utils::occ_grid::getValue(occ_grid, robot_x_pos_, robot_y_pos_) == 0)
+            {
+                ROS_ERROR("PATH SIZE: %lu", path_.size());
+                ROS_WARN("Value: %u", RAS_Utils::occ_grid::getValue(occ_grid, robot_x_pos_, robot_y_pos_)); 
+            }      
+                if(path_.size() == 0 && RAS_Utils::occ_grid::isFree(occ_grid, robot_x_pos_, robot_y_pos_)){
+                    going_home_ = true;
+                    system("espeak 'I am going home now! Hopefully'");
+                }
             }
         }
 
@@ -238,10 +242,13 @@ private:
             calculateHomePath(occ_grid, cost_grid);
         }
 
-        if(going_home_ && path_.size() < 5)
+        if(going_home_ && path_.size() < 15)
         {
-            system("espeak 'I am back home! Phew'");
+            system("espeak 'I am back home!'");
             finished_ = true;
+            v = 0;
+            w = 0;
+            return;
         }
 
 
@@ -283,7 +290,7 @@ private:
                 turnCommandCombo();
                 return;
             }
-        }
+        } 
 
 
         if(use_path_follower_) {
@@ -403,7 +410,7 @@ private:
 
         geometry_msgs::Point to_point = getPointToFollow(occ_grid);
 
-//        std::cout << "Wanted angle: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
+//        std::cout  << "Wanted angle: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
 
         return atan2(to_point.y - robot_y_pos_,  to_point.x - robot_x_pos_);
     }
@@ -510,15 +517,17 @@ private:
         if(timeToComputeNewPath())
         {
 
-            ros::WallTime temp_time = ros::WallTime::now();
+       //     ros::WallTime temp_time = ros::WallTime::now();
             path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
 //            ROS_INFO("path size: %u", path_.size());
             if(path_.size() != 0) { 
                 path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
-            } else 
+            } 
+            if(path_.size() == 0)
             {
                 path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_);
             }
+            
 //            std::cout << "New Path: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
             calculateTimeUntilNextPath();
         }
