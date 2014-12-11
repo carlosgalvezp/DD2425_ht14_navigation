@@ -42,11 +42,13 @@
 
 #define REALIGN_POS_TIMER 15
 
+#define MAX_DIST_FRONT_WALL     6      // [cm]
+
 class Navigator
 {
 public:
 
-    Navigator() : localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), localize_timer_(ros::WallTime::now())
+    Navigator() : temp_var(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), localize_timer_(ros::WallTime::now())
     {
         latest_path_update_time_ = ros::WallTime::now();
     }
@@ -157,10 +159,11 @@ public:
 
     bool shouldLocalize()
     {
-        if((ros::WallTime::now().toSec() - localize_timer_.toSec() < 10.0)  && RAS_Utils::sensors::canFollowAWall(sd))
+        if((ros::WallTime::now().toSec() - localize_timer_.toSec() > 10.0)  && RAS_Utils::sensors::canFollowAWall(sd))
         {
             return true;
         }
+        return false;
     }
 
     void resetLocalizeTimer()
@@ -238,7 +241,9 @@ private:
             }      
                 if(path_.size() == 0 && RAS_Utils::occ_grid::isFree(occ_grid, robot_x_pos_, robot_y_pos_)){
                     going_home_ = true;
-                    system("espeak 'I am going home now! Hopefully'");
+                    //v = 0;
+                    //w = 0;
+                    //system("espeak 'I am going home now! Hopefully'");
                 }
             }
         }
@@ -322,6 +327,7 @@ private:
 
     void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
+        /*
         if(shouldLocalize() || temp_var)
         {
             temp_var = true;
@@ -329,6 +335,7 @@ private:
             w = 0;
             return;
         }
+        */
 
 
         calculatePathToPoint(occ_grid, cost_grid, current_object_point_.x, current_object_point_.y);
@@ -383,16 +390,16 @@ private:
         }
 
         robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
-        std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
-        std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
-        RAS_Utils::print(strings, values);
+        // std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
+        // std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
+        // RAS_Utils::print(strings, values);
     }
 
 
     bool currentObjectHasBeenRetrieved() // TODO: should make sure that we actually have seen the object.
     {
         // right now only checks that we are really close to object detection position
-        if(path_.size() < 5)
+        if(path_.size() < 15)
         {
             return true;
         }

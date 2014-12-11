@@ -10,7 +10,6 @@
 #include <math.h>
 #include <ras_utils/ras_sensor_utils.h>
 
-#define MAX_DIST_FRONT_WALL     13      // [cm]
 #define MAX_DIST_SIDE_WALL     25       // [cm]
 
 #define DEFAULT_DEBUG_PRINT             true

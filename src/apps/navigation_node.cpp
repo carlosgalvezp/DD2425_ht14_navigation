@@ -32,6 +32,7 @@ public:
 
 
 private:
+ //   bool temp; 
     // ** Publishers and subscribers
     ros::Publisher twist_pub_;
     ros::Publisher pose2d_pub_;
@@ -94,6 +95,7 @@ int main (int argc, char* argv[])
 
 Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW)
 {
+ //   temp = false;
     addParams();
     print_params();
 
@@ -141,6 +143,7 @@ void Navigation::addParams()
     navigator_.setParams(wf_params, rt_params, raf_params, phase_);
 }
 
+
 void Navigation::run()
 {
     if(phase_ = 1)
@@ -184,7 +187,7 @@ void Navigation::run()
             ROS_INFO("%i", results.size());
         }
         */
-        double max_w = 1.5;
+        double max_w = 1.0;
         if (fabs(w) > max_w)
         {
             w = max_w * RAS_Utils::sign(w);
@@ -194,6 +197,7 @@ void Navigation::run()
         geometry_msgs::Twist msg;
 
         displayPathRviz(navigator_.getPath());
+
 
         msg.linear.x = v;
         msg.linear.y = 0.0;
@@ -205,12 +209,17 @@ void Navigation::run()
 
         twist_pub_.publish(msg);
 
-        if(navigator_.shouldLocalize())
+/*
+        if(navigator_.shouldLocalize() )
+        //if(!temp)
         {
+            temp = true;
             std_msgs::Bool msg;
             msg.data = true;
             localize_pub_.publish(msg);
+            navigator_.resetLocalizeTimer();
         }
+        */
 
         // ** Sleep
         ros::spinOnce();
