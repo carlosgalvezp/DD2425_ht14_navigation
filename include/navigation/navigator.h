@@ -45,7 +45,7 @@ class Navigator
 {
 public:
 
-    Navigator() : seconds_until_recompute_path_(0), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), realign_timer_(ros::WallTime::now()) {}
+    Navigator() : localize(false), seconds_until_recompute_path_(0), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), use_path_follower_(true), localize_timer_(ros::WallTime::now()) {}
 
     void setParams(WF_PARAMS wf_params, RT_PARAMS rt_params, RAF_PARAMS raf_params, int phase)
     {
@@ -149,6 +149,19 @@ public:
         return path_;
     }
 
+    bool shouldLocalize()
+    {
+        if((ros::WallTime::now().toSec() - localize_timer_.toSec() < 10.0)  && RAS_Utils::sensors::canFollowAWall(sd))
+        {
+            return true;
+        }
+    }
+
+    void resetLocalizeTimer()
+    {
+        localize_timer_ = ros::WallTime::now();
+    }
+
 private:
 
     struct CommandInfo {
@@ -184,7 +197,8 @@ private:
 
     int phase_;
 
-    ros::WallTime realign_timer_;
+    ros::WallTime localize_timer_;
+    bool localize;
 
     ros::WallTime latest_path_update_time_;
     double seconds_until_recompute_path_;
@@ -220,7 +234,7 @@ private:
         }
 
         /*
-        if(shouldReAlignPosAndDir())
+        if(shouldLocalize())
         {
             command_stack_.push(CommandInfo(COMMAND_ALIGN_POS_DIR));
             command_stack_.push(CommandInfo(COMMAND_ALIGN));
@@ -291,17 +305,19 @@ private:
         }
     }
 
-
-    bool shouldReAlignPosAndDir()
-    {
-        //if( (current_t.toSec() - realign_timer_.toSec()) && RAS_Utils::sensors::canFollowAWall(sd))
-       // {
-       //     return true;
-       // }
-    }
+    bool temp_var;
 
     void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid)
     {
+        if(shouldLocalize() || temp_var)
+        {
+            temp_var = true;
+            v = 0;
+            w = 0;
+            return;
+        }
+
+
         calculatePathToPoint(occ_grid, cost_grid, current_object_point_.x, current_object_point_.y);
 
         if(currentObjectHasBeenRetrieved())
@@ -342,6 +358,7 @@ private:
 
         if(isWallCloseInFront())
         {
+
             if(!use_path_follower_ || fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
             {
                 // Wall straight ahead, and we are going almost straight to it, force a turn because we probably have a unknown wall ahead that we need to detect.
@@ -366,6 +383,7 @@ private:
         {
             return true;
         }
+
         return false;
     }
 
@@ -400,6 +418,7 @@ private:
 
     geometry_msgs::Point getPointToFollow(const nav_msgs::OccupancyGrid & occ_grid)
     {
+        ROS_INFO("Starts calculating path");
         int best_point = 0;
         bool point_is_good = true;
         for(int i = 0; i < path_.size() && point_is_good; i++)
@@ -409,7 +428,7 @@ private:
             double distance = RAS_Utils::euclidean_distance(robot_x_pos_, robot_y_pos_, point.x, point.y);
             double angle = atan2(point.y - robot_y_pos_,  point.x - robot_x_pos_);
 
-            for(int part_dist = 0; part_dist <= distance; part_dist++)
+            for(double part_dist = 0.01; part_dist <= distance; part_dist += 0.01)
             {
                 double x_pos = robot_x_pos_ + cos(angle) * distance;
                 double y_pos = robot_y_pos_ + sin(angle) * distance;
@@ -470,6 +489,7 @@ private:
         if(timeToComputeNewPath())
         {
             path_ = RAS_Utils::occ_grid::bfs_search::getClosestUnknownPath(occ_grid, cost_grid, robot_front_x_pos_, robot_front_y_pos_);
+            //TODO: Fix what happens when we have no more unknown
             path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, path_.back().x, path_.back().y);
             calculateTimeUntilNextPath();
         }

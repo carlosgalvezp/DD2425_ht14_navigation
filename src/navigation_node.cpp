@@ -11,6 +11,7 @@
 #include <navigation/navigator.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <std_msgs/Int64MultiArray.h>
+#include <std_msgs/Bool.h>
 
 #include <ras_utils/graph/graph.h>
 #include <ras_utils/graph/dfs_planner.h>
@@ -35,6 +36,7 @@ private:
     ros::Publisher twist_pub_;
     ros::Publisher pose2d_pub_;
     ros::Publisher path_pub_;
+    ros::Publisher localize_pub_;
 
     ros::Subscriber adc_sub_;
     ros::Subscriber odo_sub_;
@@ -98,6 +100,7 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
     // Publisher
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
     path_pub_  = n.advertise<visualization_msgs::MarkerArray>(TOPIC_MARKERS, 1);
+    localize_pub_ = n.advertise<std_msgs::Bool>(TOPIC_LOCALIZATION, 1);
 
     // Subscriber
     adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
@@ -197,6 +200,13 @@ void Navigation::run()
         msg.angular.z = w;
 
         twist_pub_.publish(msg);
+
+        if(navigator_.shouldLocalize())
+        {
+            std_msgs::Bool msg;
+            msg.data = true;
+            localize_pub_.publish(msg);
+        }
 
         // ** Sleep
         ros::spinOnce();
