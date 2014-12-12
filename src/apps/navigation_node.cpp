@@ -152,7 +152,7 @@ void Navigation::run()
     }
 
     ros::Rate loop_rate(PUBLISH_RATE);
-    while(ros::ok())
+    while(ros::ok() && !navigator_.closeNode())
     {
         double v, w;
 
@@ -217,17 +217,19 @@ void Navigation::run()
             {
                 msg.x = 0;
                 msg.y = 0;
-                point_pub_.publish(msg);
+                
+
 
             } else if(navigator_.lookingAtObject())
             {
                 msg = navigator_.getObjectToLookAt();
-                point_pub_.publish(msg);
+                ROS_ERROR("Now trying to look at object"); 
             } else
             {
                 // look for unknown
                 msg.z = -1;
             }
+            point_pub_.publish(msg);
         }
 
 /*

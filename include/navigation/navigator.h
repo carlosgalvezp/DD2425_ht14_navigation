@@ -49,7 +49,7 @@ class Navigator
 {
 public:
 
-    Navigator() : looking_at_object_(false), going_home_spoken_(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), localize_timer_(ros::WallTime::now())
+    Navigator() : close_node(false), looking_at_object_(false), going_home_spoken_(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), localize_timer_(ros::WallTime::now())
     {
         latest_path_update_time_ = ros::WallTime::now();
     }
@@ -105,6 +105,7 @@ public:
         if(finished_) {
             ROS_ERROR("We are back home");
             system("espeak 'I am back home!'");
+            close_node = true;
             v = 0;
             w = 0;
             return;
@@ -213,6 +214,12 @@ public:
         return object_to_look_at_;
     }
 
+    bool closeNode()
+    {
+        return close_node;
+    }
+
+
 private:
 
     struct CommandInfo {
@@ -243,6 +250,7 @@ private:
     bool going_home_;
     bool going_home_spoken_;
     bool finished_;
+    bool close_node;
 
     std::vector<geometry_msgs::Point> wall_follower_points_;
 
@@ -278,6 +286,17 @@ private:
     void explorePhase(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
 
+        if(looking_at_object_)
+        {
+            if(path_.size() < 15)
+            {
+                looking_at_object_ = false;
+                v = 0;
+                w = 0;
+                return;
+            }
+        }
+
         if(!going_home_)
         {
             if(path_.size() == 0)
@@ -295,18 +314,13 @@ private:
 
         if(going_home_ && isCloseToHome())
         {
+            finished_ = true;
             v = 0;
             w = 0;
             return;
         }
 
-        if(looking_at_object_)
-        {
-            if(path_.size() < 15)
-            {
-                looking_at_object_ = false;
-            }
-        }
+        
 
 
 
@@ -459,17 +473,18 @@ private:
                 }
                 std::vector<double> extra_x_points;
                 std::vector<double> extra_y_points;
-                extra_x_points.push_back(-0.04);
-                extra_y_points.push_back(-0.04);
+                double m_away_from_wall = 0.06;
+                extra_x_points.push_back(-m_away_from_wall);
+                extra_y_points.push_back(-m_away_from_wall);
 
-                extra_x_points.push_back(-0.04);
-                extra_y_points.push_back(0.04);
+                extra_x_points.push_back(-m_away_from_wall);
+                extra_y_points.push_back(m_away_from_wall);
 
-                extra_x_points.push_back(0.04);
-                extra_y_points.push_back(-0.04);
+                extra_x_points.push_back(m_away_from_wall);
+                extra_y_points.push_back(-m_away_from_wall);
 
-                extra_x_points.push_back(0.04);
-                extra_y_points.push_back(0.04);
+                extra_x_points.push_back(m_away_from_wall);
+                extra_y_points.push_back(m_away_from_wall);
 
                 // Thick "thicker line"
                 for(double extra_x : extra_x_points)
@@ -490,7 +505,7 @@ private:
             }
 
         }
-        best_point = best_point - 25;
+        best_point = best_point - 10;
 //        ROS_INFO("Best point: %u", best_point);
 
         return path_[std::max(best_point, std::min(8, (int)path_.size() - 1))];

@@ -11,7 +11,7 @@
 #include <vector>
 
 #define QUEUE_SIZE      1
-#define PUBLISH_RATE    50
+#define PUBLISH_RATE    10
 
 class PathFinderNode : rob::BasicNode
 {
