@@ -63,14 +63,15 @@ public:
 
     void setObjectsToRetrieve(std::queue<geometry_msgs::Point> objects_to_retrieve)
     {
+        looking_at_object_ = true;
         objects_to_retrieve_ = objects_to_retrieve;
         if(objects_to_retrieve.size() != 0)
         {
-            current_object_point_ = objects_to_retrieve_.front();
+            object_to_look_at_ = objects_to_retrieve_.front();
             objects_to_retrieve_.pop();
         } else {
-            current_object_point_.x = 0;
-            current_object_point_.y = 0;
+            object_to_look_at_.x = 0;
+            object_to_look_at_.y = 0;
         }
     }
 
@@ -159,6 +160,12 @@ public:
 
     void objectDetected(const geometry_msgs::Point & object_point)
     {
+        if(phase_ == SECOND_PHASE)
+        {
+            // To nothing if we are doing phase 2
+            return;
+        }
+
         for(geometry_msgs::Point & old_point : visited_object_locations)
         {
             if(RAS_Utils::euclidean_distance(old_point.x, old_point.y, object_point.x, object_point.y) < 0.15)
@@ -264,7 +271,6 @@ private:
 
     // Just for second phase
     std::queue<geometry_msgs::Point> objects_to_retrieve_;
-    geometry_msgs::Point current_object_point_;
 
     std::vector<geometry_msgs::Point> visited_object_locations;
     geometry_msgs::Point object_to_look_at_;
@@ -362,25 +368,28 @@ private:
 
     void retrieveObjects(double &v, double &w, const nav_msgs::OccupancyGrid & occ_grid)
     {
-        /*
-        calculatePathToPoint(occ_grid, cost_grid, current_object_point_.x, current_object_point_.y);
+
+        //calculatePathToPoint(occ_grid, cost_grid, current_object_point_.x, current_object_point_.y);
 
         if(currentObjectHasBeenRetrieved())
         {
             if(going_home_)
             {
                 // we are home
+                finished_ = true;
                 v = 0;
                 w = 0;
                 return;
             }
             if(objects_to_retrieve_.size() > 0) {
-                current_object_point_ = objects_to_retrieve_.front();
+                object_to_look_at_ = objects_to_retrieve_.front();
                 objects_to_retrieve_.pop();
             } else
             {
-                current_object_point_.x = 0;
-                current_object_point_.y = 0;
+                v = 0;
+                w = 0;
+                object_to_look_at_.x = 0;
+                object_to_look_at_.y = 0;
                 going_home_ = true;
             }
         }
@@ -389,10 +398,9 @@ private:
         if(isWallDangerouslyCloseToWheels()) // && fabs(RAS_Utils::normalize_angle(wanted_angle - robot_angle_)) < M_PI/7)
         {
             // ALWAYS check this first, this is our most important check for not hitting a wall
-            wantedDistanceRecentlySet_ = false;
+
             // Stop the robot. Then back up some distance
             ROS_ERROR("!!! Dangerously close to wheels !!!");
-            turnCommandCombo();
             command_stack_.push(CommandInfo(COMMAND_DANGER_CLOSE_BACKING));
             command_stack_.push(CommandInfo(COMMAND_STOP));
             return;
@@ -415,17 +423,14 @@ private:
         }
 
         robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
-        // std::vector<std::string> strings = {"v", "w", "robot_angle", "wanted_angle"};
-        // std::vector<double> values  = {v, w, robot_angle_, wanted_angle};
-        // RAS_Utils::print(strings, values);
-        */
+
     }
 
 
     bool currentObjectHasBeenRetrieved() // TODO: should make sure that we actually have seen the object.
     {
         // right now only checks that we are really close to object detection position
-        if(path_.size() < 15)
+        if(path_.size() < 18)
         {
             return true;
         }
