@@ -117,6 +117,7 @@ public:
                     waiting_for_path_to_next_object_step_2_ = true;
                     object_to_look_at_ = objects_to_retrieve_.front();
                     objects_to_retrieve_.pop();
+                    ROS_ERROR("Objects left: %lu, X: %.3f Y %.3f", objects_to_retrieve_.size(), object_to_look_at_.x, object_to_look_at_.y);
                 }
             }
 
@@ -350,7 +351,7 @@ private:
 
         if(looking_at_object_)
         {
-            if(path_.size() < 15)
+            if(path_.size() < 20)
             {
                 looking_at_object_ = false;
                 v = 0;
@@ -445,7 +446,11 @@ private:
                 double wanted_angle = atan2(object_to_look_at_.y - robot_y_pos_,  object_to_look_at_.x - robot_x_pos_);
                 command_args.push_back(wanted_angle);
 
+                command_stack_.push(CommandInfo(COMMAND_STOP));
+                command_stack_.push(CommandInfo(COMMAND_STOP));
+                command_stack_.push(CommandInfo(COMMAND_STOP));
                 command_stack_.push(CommandInfo(COMMAND_SPECIFIC_TURN, command_args));
+
 
                 ROS_WARN("%lu", objects_to_retrieve_.size());
                 ROS_ERROR("New object!");
@@ -743,7 +748,7 @@ private:
     void activateSpecificTurner(double angle_right_now, double wanted_angle)
     {
         ROS_INFO("!!! Initiate object turning !!!");
-        robot_turner_.activate(angle_right_now, angle_right_now - wanted_angle);
+        robot_turner_.activate(angle_right_now, wanted_angle - angle_right_now);
     }
 
     double computeExplorerTurningAngle()
