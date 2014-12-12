@@ -49,7 +49,7 @@ class Navigator
 {
 public:
 
-    Navigator() : close_node(false), looking_at_object_(false), going_home_spoken_(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), localize_timer_(ros::WallTime::now())
+    Navigator() : waiting_for_path_to_next_object_(false), waiting_for_path_to_next_object_step_2_(false), close_node(false), looking_at_object_(false), going_home_spoken_(false), localize(false), seconds_until_recompute_path_(-1), wantedDistanceRecentlySet_(false), going_home_(false), finished_(false), localize_timer_(ros::WallTime::now())
     {
         latest_path_update_time_ = ros::WallTime::now();
     }
@@ -73,6 +73,10 @@ public:
             object_to_look_at_.x = 0;
             object_to_look_at_.y = 0;
         }
+        geometry_msgs::Point home_point;
+        home_point.x = 0;
+        home_point.y = 0;
+        objects_to_retrieve_.push(home_point);
     }
 
     void computeCommands(const nav_msgs::OccupancyGrid::ConstPtr & map_msg,
@@ -91,10 +95,54 @@ public:
         }
 
         path_ = path_msg->markers[0].points;
+
+        {
+            // Special handshake for second phase
+            if(waiting_for_path_to_next_object_)
+            {
+                ROS_WARN("Waiting first shake: %lu", path_.size());
+
+                //
+                if(path_.size() > 1)
+                {
+                    // Still no path
+                    v = 0;
+                    w = 0;
+                    return;
+                } else
+                {
+                    ROS_WARN("Start second second shake: %lu", path_.size());
+                    waiting_for_path_to_next_object_ = false;
+                    waiting_for_path_to_next_object_step_2_ = true;
+                    object_to_look_at_ = objects_to_retrieve_.front();
+                    objects_to_retrieve_.pop();
+                }
+            }
+
+            if(waiting_for_path_to_next_object_step_2_)
+            {
+
+                ROS_WARN("Waiting second shake: %lu", path_.size());
+
+                if(path_.size() <= 1)
+                {
+                    // Correct path not retrieved
+                    v = 0;
+                    w = 0;
+                    return;
+                } else
+                {
+                    ROS_WARN("Second shake done: %lu", path_.size());
+                    // Now we can continue
+                    waiting_for_path_to_next_object_step_2_ = false;
+                }
+            }
+        }
+
         purgePath();
 
      //   ros::WallTime temp_time = ros::WallTime::now();
-        
+
         if(going_home_ && !going_home_spoken_)
         {
             ROS_ERROR("We are now going home");
@@ -153,7 +201,7 @@ public:
             // This should always be the case, but just to make sure.
             activateStackedCommand(v, w);
 
-        } 
+        }
 
         //std::cout << "total: " << RAS_Utils::time_diff_ms(temp_time, ros::WallTime::now()) << std::endl;
     }
@@ -226,6 +274,11 @@ public:
         return close_node;
     }
 
+    bool isHandShaking()
+    {
+        return waiting_for_path_to_next_object_ || waiting_for_path_to_next_object_step_2_;
+    }
+
 
 private:
 
@@ -233,7 +286,7 @@ private:
         std::string command;
         std::vector<int> args;
         CommandInfo(std::string command, std::vector<int> args = std::vector<int>()) : command(command), args(args) {}
-    }; 
+    };
 
     RAS_Utils::sensors::SensorDistances sd;
     double robot_x_pos_, robot_y_pos_;
@@ -276,6 +329,8 @@ private:
     geometry_msgs::Point object_to_look_at_;
 
     bool looking_at_object_;
+    bool waiting_for_path_to_next_object_;
+    bool waiting_for_path_to_next_object_step_2_;
 
     void turnCommandCombo()
     {
@@ -326,7 +381,7 @@ private:
             return;
         }
 
-        
+
 
 
 
@@ -360,7 +415,7 @@ private:
                 turnCommandCombo();
                 return;
             }
-        } 
+        }
 
 
         robot_angle_follower_.run(v, w, robot_angle_, wanted_angle);
@@ -375,23 +430,36 @@ private:
         {
             if(going_home_)
             {
+                ROS_ERROR("We are home");
                 // we are home
                 finished_ = true;
                 v = 0;
                 w = 0;
                 return;
             }
-            if(objects_to_retrieve_.size() > 0) {
-                object_to_look_at_ = objects_to_retrieve_.front();
-                objects_to_retrieve_.pop();
-            } else
-            {
+            if(objects_to_retrieve_.size() > 1) {
+                ROS_WARN("%lu", objects_to_retrieve_.size());
+                ROS_ERROR("New object!");
+                waiting_for_path_to_next_object_ = true;
+                object_to_look_at_.x = -5.0;
+                object_to_look_at_.y = -5.0;
+
                 v = 0;
                 w = 0;
-                object_to_look_at_.x = 0;
-                object_to_look_at_.y = 0;
+                return;
+            } else
+            {
+                ROS_ERROR("Going home!");
+                v = 0;
+                w = 0;
+                waiting_for_path_to_next_object_ = true;
+                object_to_look_at_.x = -5.0;
+                object_to_look_at_.y = -5.0;
                 going_home_ = true;
+                return;
             }
+
+            ROS_ERROR("STOP!");
         }
 
 
@@ -595,7 +663,9 @@ private:
 
     bool currentlyRunningCommand(double &v, double &w) {
          // Just sleep if sleep was activated last iteration
-         robot_stopper_.sleepIfStopped();
+
+
+        if(robot_stopper_.sleepIfStopped()) return true;
 
         if(currentlyBacking(v, w)) return true;
 

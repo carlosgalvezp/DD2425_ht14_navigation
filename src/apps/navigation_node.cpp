@@ -213,7 +213,7 @@ void Navigation::run()
 
         {
             geometry_msgs::Point msg;
-            if(navigator_.isGoingHome())
+            if(navigator_.isGoingHome() && !navigator_.isHandShaking())
             {
                 msg.x = 0;
                 msg.y = 0;

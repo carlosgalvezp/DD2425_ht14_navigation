@@ -22,13 +22,15 @@ public:
         stopped_ = true;
     }
 
-    void sleepIfStopped()
+    bool sleepIfStopped()
     {
         if(stopped_) {
 //            ROS_WARN("Sleeping");
             ros::Duration(stop_time_).sleep();
             stopped_ = false;
+            return true;
         }
+        return false;
     }
 
 private:
