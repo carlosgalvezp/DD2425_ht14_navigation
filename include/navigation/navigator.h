@@ -31,6 +31,7 @@
 #define COMMAND_DANGER_CLOSE_BACKING    "danger_close_backing"
 #define COMMAND_ALIGN                   "align"
 #define COMMAND_ALIGN_POS_DIR           "align_pos_dir"
+#define COMMAND_SPECIFIC_TURN           "specific_turn"
 
 #define DANGEROUSLY_CLOSE_LIMIT             7.0
 #define DANGEROUSLY_CLOSE_BACKUP_DISTANCE   5
@@ -284,8 +285,8 @@ private:
 
     struct CommandInfo {
         std::string command;
-        std::vector<int> args;
-        CommandInfo(std::string command, std::vector<int> args = std::vector<int>()) : command(command), args(args) {}
+        std::vector<double> args;
+        CommandInfo(std::string command, std::vector<double> args = std::vector<double>()) : command(command), args(args) {}
     };
 
     RAS_Utils::sensors::SensorDistances sd;
@@ -438,6 +439,14 @@ private:
                 return;
             }
             if(objects_to_retrieve_.size() > 1) {
+                // Add turning towards object
+
+                std::vector<double> command_args;
+                double wanted_angle = atan2(object_to_look_at_.y - robot_y_pos_,  object_to_look_at_.x - robot_x_pos_);
+                command_args.push_back(wanted_angle);
+
+                command_stack_.push(CommandInfo(COMMAND_SPECIFIC_TURN, command_args));
+
                 ROS_WARN("%lu", objects_to_retrieve_.size());
                 ROS_ERROR("New object!");
                 waiting_for_path_to_next_object_ = true;
@@ -446,6 +455,8 @@ private:
 
                 v = 0;
                 w = 0;
+
+
                 return;
             } else
             {
@@ -650,11 +661,12 @@ private:
     void activateStackedCommand(CommandInfo command_info, double &v, double &w)
     {
         std::string command = command_info.command;
-        std::vector<int> args = command_info.args;
+        std::vector<double> args = command_info.args;
 
 
         if(command == COMMAND_STOP) robot_stopper_.activate(v, w);
         else if(command == COMMAND_EXPLORER_TURN) activateExplorerTurner(robot_angle_);
+        else if(command == COMMAND_SPECIFIC_TURN) activateSpecificTurner(robot_angle_, args[0]);
         else if(command == COMMAND_DANGER_CLOSE_BACKING) robot_backer_.activate(DANGEROUSLY_CLOSE_BACKUP_SPEED, DANGEROUSLY_CLOSE_BACKUP_DISTANCE);
         else if(command == COMMAND_ALIGN) robot_aligner_.activate();
        // else if(command == COMMAND_ALIGN_POS_DIR) robot_odometry_aligner_.activate(sd);
@@ -726,6 +738,12 @@ private:
         double base_angle = angle_right_now;
         robot_turner_.activate(base_angle, delta_angle);
 
+    }
+
+    void activateSpecificTurner(double angle_right_now, double wanted_angle)
+    {
+        ROS_INFO("!!! Initiate object turning !!!");
+        robot_turner_.activate(angle_right_now, angle_right_now - wanted_angle);
     }
 
     double computeExplorerTurningAngle()
