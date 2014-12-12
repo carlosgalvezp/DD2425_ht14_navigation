@@ -165,11 +165,7 @@ private:
             if(path_.size() == 0 && !RAS_Utils::occ_grid::isFree(occ_grid, robot_x_pos_, robot_y_pos_))
             {
                 // special check for slow loading of map.
-                // Just add a path that is simple the robot pos
-                geometry_msgs::Point point;
-                point.x = robot_x_pos_;
-                point.y = robot_y_pos_;
-                path_.push_back(point);
+                setPathToRobotPos();
             }
         //    calculateTimeUntilNextPath();
        // }
@@ -178,6 +174,20 @@ private:
     void calculatePathToPoint(const nav_msgs::OccupancyGrid & occ_grid, const std_msgs::Int64MultiArray & cost_grid, const geometry_msgs::Point & to_point)
     {
         path_ = RAS_Utils::occ_grid::bfs_search::getPathFromTo(occ_grid, cost_grid, robot_x_pos_, robot_y_pos_, to_point.x, to_point.y);
+        if(path_.size() == 0)
+        {
+            setPathToRobotPos();
+        }
+    }
+
+    void setPathToRobotPos()
+    {
+
+        // Just add a path that is simple the robot pos
+        geometry_msgs::Point point;
+        point.x = robot_x_pos_;
+        point.y = robot_y_pos_;
+        path_.push_back(point);
     }
 
 
