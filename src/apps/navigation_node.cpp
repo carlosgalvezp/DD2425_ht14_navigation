@@ -12,6 +12,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include <std_msgs/Int64MultiArray.h>
 #include <std_msgs/Bool.h>
+#include <std_msgs/String.h>
 
 #include <ras_utils/graph/graph.h>
 #include <ras_utils/graph/dfs_planner.h>
@@ -38,6 +39,8 @@ private:
     ros::Publisher pose2d_pub_;
     ros::Publisher localize_pub_;
     ros::Publisher point_pub_;
+
+    ros::Publisher speaker_pub_;
 
     ros::Subscriber adc_sub_;
     ros::Subscriber odo_sub_;
@@ -95,6 +98,8 @@ int main (int argc, char* argv[])
 
 Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FOLLOW)
 {
+    speaker_pub_ = n.advertise<std_msgs::String>(TOPIC_SPEAKER, 1);
+
  //   temp = false;
     addParams();
     print_params();
@@ -103,7 +108,6 @@ Navigation::Navigation() : mode_(RAS_Names::Navigation_Modes::NAVIGATION_WALL_FO
     twist_pub_ = n.advertise<geometry_msgs::Twist>(TOPIC_MOTOR_CONTROLLER_TWIST, QUEUE_SIZE);
     localize_pub_ = n.advertise<std_msgs::Bool>(TOPIC_LOCALIZATION, 1);
     point_pub_ = n.advertise<geometry_msgs::Point>(TOPIC_PATH_FINDER_POINT,1);
-
     // Subscriber
     adc_sub_ = n.subscribe(TOPIC_ARDUINO_ADC, 1,  &Navigation::adcCallback, this);
     odo_sub_ = n.subscribe(TOPIC_ODOMETRY, 1, &Navigation::odoCallback, this);
@@ -141,6 +145,9 @@ void Navigation::addParams()
     add_param(PARAM_PHASE, phase_, 0);
     add_param(PARAM_ROBOT_VELOCITY, raf_params.wanted_v, raf_params.wanted_v);
     navigator_.setParams(wf_params, rt_params, raf_params, phase_);
+
+    // ** Add speaker pub
+    navigator_.setSpeakerPublisher(this->speaker_pub_);
 }
 
 

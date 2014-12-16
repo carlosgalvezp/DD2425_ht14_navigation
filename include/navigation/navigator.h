@@ -17,6 +17,7 @@
 #include <navigation/robot_aligner.h>
 #include <navigation/robot_angle_follower.h>
 //#include <navigation/robot_odometry_aligner.h>
+#include <std_msgs/String.h>
 
 #include <stack>
 #include <queue>
@@ -148,7 +149,9 @@ public:
         if(going_home_ && !going_home_spoken_)
         {
             ROS_ERROR("We are now going home");
-            system("espeak 'I am going home now! Hopefully'");
+            std_msgs::String msg;
+            msg.data = "I am going home now, hopefully";
+            this->speaker_pub_.publish(msg);
             going_home_spoken_ = true;
         }
 
@@ -281,6 +284,10 @@ public:
         return waiting_for_path_to_next_object_ || waiting_for_path_to_next_object_step_2_;
     }
 
+    void setSpeakerPublisher(const ros::Publisher &pub)
+    {
+        this->speaker_pub_ = pub;
+    }
 
 private:
 
@@ -289,6 +296,8 @@ private:
         std::vector<double> args;
         CommandInfo(std::string command, std::vector<double> args = std::vector<double>()) : command(command), args(args) {}
     };
+
+    ros::Publisher speaker_pub_;
 
     RAS_Utils::sensors::SensorDistances sd;
     double robot_x_pos_, robot_y_pos_;

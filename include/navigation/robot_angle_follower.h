@@ -61,7 +61,7 @@ public:
 //        ROS_ERROR("Diff: %.3f, Currrent_angle: %.3f, wanted_angle: %.3f", diff, current_angle, wanted_angle);
 
 
-        double v_retract =  fmin((wanted_v / (M_PI / 7.0)) * fabs(diff), wanted_v);
+        double v_retract =  fmin((wanted_v / (M_PI / 5.0)) * fabs(diff), wanted_v);
 
         v = wanted_v - v_retract;
     }
